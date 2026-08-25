@@ -7,6 +7,17 @@ export type CheckoutInput = {
   items: { productId: string; quantity: number }[];
 };
 
+export type OrderStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
+const transitions: Record<OrderStatus, OrderStatus[]> = {
+  pending: ['confirmed', 'cancelled'], confirmed: ['completed', 'cancelled'], completed: [], cancelled: [],
+};
+
+export function validateStatusTransition(current: string, next: string): string[] {
+  if (!Object.keys(transitions).includes(current) || !Object.keys(transitions).includes(next)) return ['Order status is invalid'];
+  if (!transitions[current as OrderStatus].includes(next as OrderStatus)) return [`Cannot change order status from ${current} to ${next}`];
+  return [];
+}
+
 export function validateCheckoutInput(input: Partial<CheckoutInput>): string[] {
   const errors: string[] = [];
   if (!input.submissionKey?.trim()) errors.push('Submission key is required');

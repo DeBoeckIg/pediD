@@ -24,4 +24,12 @@ describe('admin order management', () => {
     const { default: Page } = await import('../app/admin/orders/page');
     await expect(Page({ searchParams: Promise.resolve({}) })).rejects.toThrow('Unauthorized');
   });
+
+  it('allows only explicit forward or cancellation transitions', async () => {
+    const { validateStatusTransition } = await import('../src/modules/orders/validation');
+    expect(validateStatusTransition('pending', 'confirmed')).toEqual([]);
+    expect(validateStatusTransition('confirmed', 'completed')).toEqual([]);
+    expect(validateStatusTransition('pending', 'completed')).not.toEqual([]);
+    expect(validateStatusTransition('completed', 'pending')).not.toEqual([]);
+  });
 });

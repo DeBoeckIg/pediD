@@ -9,11 +9,13 @@ const deleteProduct = vi.fn(async () => undefined);
 const deleteCategory = vi.fn(async () => undefined);
 const replacePrimaryImage = vi.fn(async (_client, _storage, productId, file) => ({ product_id: productId, object_path: `products/${productId}/${file.name}` }));
 const validateImage = vi.fn(() => []);
+const updateOrderStatus = vi.fn(async () => ({ id: 'order-1', status: 'confirmed' }));
 
 vi.mock('@/modules/auth/guard', () => ({ requireAdmin }));
 vi.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: createClient, createSupabaseAdminClient: createClient }));
 vi.mock('@/modules/catalog/service', () => ({ saveCategory, saveProduct, deleteProduct, deleteCategory }));
 vi.mock('@/modules/media/service', () => ({ replacePrimaryImage, validateImage }));
+vi.mock('@/modules/orders/admin-service', () => ({ updateOrderStatus }));
 
 describe('admin route boundaries', () => {
   beforeEach(() => { state.authorized = true; vi.clearAllMocks(); });
@@ -42,5 +44,13 @@ describe('admin route boundaries', () => {
     expect((await DELETE(new Request('http://localhost'), { params: Promise.resolve({ id: 'category-1' }) })).status).toBe(409);
     expect((await DELETE(new Request('http://localhost'), { params: Promise.resolve({ id: 'category-1' }) })).status).toBe(204);
     expect(deleteCategory).toHaveBeenCalledTimes(2);
+  });
+
+  it('protects order status updates and delegates authorized requests', async () => {
+    const { POST } = await import('../app/api/admin/orders/status/route');
+    const request = () => new Request('http://localhost', { method: 'POST', body: JSON.stringify({ orderId: 'order-1', status: 'confirmed' }), headers: { 'content-type': 'application/json' } });
+    expect((await POST(request())).status).toBe(200);
+    state.authorized = false;
+    expect((await POST(request())).status).toBe(401);
   });
 });
