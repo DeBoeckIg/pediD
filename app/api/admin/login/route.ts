@@ -1,0 +1,4 @@
+import { NextResponse } from 'next/server';
+import { issueAdminSession } from '@/modules/auth/session';
+import { signIn } from '@/modules/auth/service';
+export async function POST(request: Request) { const body = await request.json() as { businessCode?: string; password?: string }; if (!body.businessCode || !body.password) return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 }); try { await signIn(body.businessCode, body.password); const response = NextResponse.json({ ok: true }); response.cookies.set('pedid_admin_session', await issueAdminSession(), { httpOnly: true, secure: process.env.NODE_ENV === 'production', sameSite: 'lax', maxAge: 60 * 60 * 8, path: '/' }); return response; } catch { return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 }); } }

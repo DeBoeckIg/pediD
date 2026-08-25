@@ -1,0 +1,9 @@
+.atl/
+.codegraph/
+.env*
+!.env.example
+node_modules/
+.next/
+*.tsbuildinfo
+supabase/.temp/
+supabase/.branches/

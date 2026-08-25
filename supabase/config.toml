@@ -1,0 +1,10 @@
+# Project-local Supabase CLI configuration.
+# The local stack uses the repository's supabase/migrations directory by default.
+project_id = "pedid"
+
+[db]
+major_version = 15
+
+[db.migrations]
+
+[db.seed]
