@@ -17,12 +17,14 @@ create policy admin_config on public.installation_config for all to service_role
 create policy admin_orders on public.orders for select to service_role using (true); create policy admin_items on public.order_items for select to service_role using (true); create policy admin_cleanup on public.storage_cleanup_jobs for all to service_role using (true) with check (true);
 insert into storage.buckets (id,name,public) values ('product-images','product-images',false) on conflict (id) do nothing;
 create policy product_images_storage_admin on storage.objects for all to service_role using (bucket_id='product-images') with check (bucket_id='product-images');
+grant usage on schema public to service_role;
+grant all on table public.installation_config, public.categories, public.products, public.product_images, public.orders, public.order_items, public.storage_cleanup_jobs to service_role;
 revoke all on table public.products from anon, authenticated;
 revoke all on table public.categories from anon, authenticated;
 revoke all on table public.product_images from anon, authenticated;
 grant select on public.public_catalog to anon, authenticated;
 create or replace function public.checkout(submission_key text, customer_name text, customer_surname text, payment_method text, delivery_method text, items jsonb)
-returns jsonb language plpgsql security definer set search_path=public as $$
+returns jsonb language plpgsql security definer set search_path=public, extensions as $$
 declare existing_ref text; item jsonb; product_row products%rowtype; order_id uuid; reference text := encode(gen_random_bytes(24),'hex');
 begin
   select order_reference into existing_ref from orders where orders.submission_key=checkout.submission_key;
