@@ -10,6 +10,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
   const orders = await listAdminOrders(await createSupabaseServerClient(), filters);
 
   return <main className="mx-auto max-w-6xl p-4">
+    <nav className="mb-4 flex gap-4"><a href="/admin/catalog">Catalog</a><a href="/admin/orders">Orders</a></nav>
     <h1 className="text-2xl font-bold">Order administration</h1>
     <form className="mt-4 grid gap-2 rounded border p-3 sm:grid-cols-4" method="get">
       <input name="reference" defaultValue={filters.reference} placeholder="Order reference" aria-label="Order reference" className="rounded border p-2" />
