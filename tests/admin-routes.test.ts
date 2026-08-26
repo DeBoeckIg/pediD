@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const state = { authorized: true, client: {} as any };
+const state = { authorized: true, serverClient: {} as any, adminClient: {} as any };
 const requireAdmin = vi.fn(async () => { if (!state.authorized) throw new Error('Unauthorized'); });
-const createClient = vi.fn(async () => state.client);
+const createServerClient = vi.fn(async () => state.serverClient);
+const createAdminClient = vi.fn(() => state.adminClient);
 const saveCategory = vi.fn(async (_client, id, name) => ({ id: id ?? 'category-1', name }));
 const saveProduct = vi.fn(async (_client, id, input) => ({ id: id ?? 'product-1', ...input }));
 const deleteProduct = vi.fn(async () => undefined);
@@ -14,7 +15,7 @@ const signIn = vi.fn(async (businessCode: string, password: string) => { if (bus
 const issueAdminSession = vi.fn(async () => 'session-token');
 
 vi.mock('@/modules/auth/guard', () => ({ requireAdmin }));
-vi.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: createClient, createSupabaseAdminClient: createClient }));
+vi.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: createServerClient, createSupabaseAdminClient: createAdminClient }));
 vi.mock('@/modules/catalog/service', () => ({ saveCategory, saveProduct, deleteProduct, deleteCategory }));
 vi.mock('@/modules/media/service', () => ({ replacePrimaryImage, validateImage }));
 vi.mock('@/modules/orders/admin-service', () => ({ updateOrderStatus }));
@@ -39,7 +40,7 @@ describe('admin route boundaries', () => {
     expect((await categories.POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ name: 'Drinks' }), headers: { 'content-type': 'application/json' } }))).status).toBe(201);
     expect((await products.POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ name: 'Tea', categoryId: 'category-1', priceArs: 100, stockQuantity: 2, published: true }), headers: { 'content-type': 'application/json' } }))).status).toBe(201);
     expect((await products.DELETE(new Request('http://localhost/api/admin/products?id=product-1'))).status).toBe(204);
-    expect(saveCategory).toHaveBeenCalled(); expect(saveProduct).toHaveBeenCalled(); expect(deleteProduct).toHaveBeenCalledWith(state.client, 'product-1');
+    expect(saveCategory).toHaveBeenCalledWith(state.adminClient, undefined, 'Drinks'); expect(saveProduct).toHaveBeenCalledWith(state.adminClient, undefined, expect.any(Object)); expect(deleteProduct).toHaveBeenCalledWith(state.adminClient, 'product-1');
   });
 
   it('enforces reassignment before category deletion at the route boundary', async () => {
@@ -47,7 +48,7 @@ describe('admin route boundaries', () => {
     const { DELETE } = await import('../app/api/admin/categories/[id]/route');
     expect((await DELETE(new Request('http://localhost'), { params: Promise.resolve({ id: 'category-1' }) })).status).toBe(409);
     expect((await DELETE(new Request('http://localhost'), { params: Promise.resolve({ id: 'category-1' }) })).status).toBe(204);
-    expect(deleteCategory).toHaveBeenCalledTimes(2);
+    expect(deleteCategory).toHaveBeenCalledTimes(2); expect(deleteCategory).toHaveBeenLastCalledWith(state.adminClient, 'category-1');
   });
 
   it('protects order status updates and delegates authorized requests', async () => {
