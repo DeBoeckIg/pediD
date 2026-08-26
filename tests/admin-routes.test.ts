@@ -10,12 +10,16 @@ const deleteCategory = vi.fn(async () => undefined);
 const replacePrimaryImage = vi.fn(async (_client, _storage, productId, file) => ({ product_id: productId, object_path: `products/${productId}/${file.name}` }));
 const validateImage = vi.fn(() => []);
 const updateOrderStatus = vi.fn(async () => ({ id: 'order-1', status: 'confirmed' }));
+const signIn = vi.fn(async (businessCode: string, password: string) => { if (businessCode !== 'STORE' || password !== 'SecureAdmin123') throw new Error('Invalid credentials'); });
+const issueAdminSession = vi.fn(async () => 'session-token');
 
 vi.mock('@/modules/auth/guard', () => ({ requireAdmin }));
 vi.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: createClient, createSupabaseAdminClient: createClient }));
 vi.mock('@/modules/catalog/service', () => ({ saveCategory, saveProduct, deleteProduct, deleteCategory }));
 vi.mock('@/modules/media/service', () => ({ replacePrimaryImage, validateImage }));
 vi.mock('@/modules/orders/admin-service', () => ({ updateOrderStatus }));
+vi.mock('@/modules/auth/service', () => ({ signIn }));
+vi.mock('@/modules/auth/session', () => ({ issueAdminSession }));
 
 describe('admin route boundaries', () => {
   beforeEach(() => { state.authorized = true; vi.clearAllMocks(); });
@@ -52,5 +56,24 @@ describe('admin route boundaries', () => {
     expect((await POST(request())).status).toBe(200);
     state.authorized = false;
     expect((await POST(request())).status).toBe(401);
+  });
+
+  it('keeps the login endpoint contract and only issues a session for valid credentials', async () => {
+    const { POST } = await import('../app/api/admin/login/route');
+    const request = (body: unknown) => new Request('http://localhost/api/admin/login', { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json' } });
+    expect((await POST(request({ businessCode: 'STORE', password: 'SecureAdmin123' }))).status).toBe(200);
+    expect(issueAdminSession).toHaveBeenCalled();
+    const denied = await POST(request({ businessCode: 'STORE', password: 'wrong' }));
+    expect(denied.status).toBe(401);
+    expect((await denied.json()).error).toBe('Invalid credentials');
+  });
+
+  it('renders a browser login form that posts credentials and redirects to catalog', async () => {
+    const source = await import('node:fs/promises').then(fs => fs.readFile('app/admin/login/form.tsx', 'utf8'));
+    expect(source).toContain('name="businessCode"');
+    expect(source).toContain('name="password"');
+    expect(source).toContain("fetch('/api/admin/login'");
+    expect(source).toContain("router.push('/admin/catalog')");
+    expect(source).toContain('role="alert"');
   });
 });
