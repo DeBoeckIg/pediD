@@ -2,9 +2,25 @@
 # The local stack uses the repository's supabase/migrations directory by default.
 project_id = "pedid"
 
+[api]
+port = 55431
+
 [db]
 major_version = 15
+port = 55432
+
+[studio]
+port = 55433
+
+[local_smtp]
+port = 55434
+
+[auth]
+port = 55435
 
 [db.migrations]
 
 [db.seed]
+
+[analytics]
+enabled = false
