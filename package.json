@@ -1,7 +1,36 @@
 {
   "name": "pedid",
   "private": true,
-  "scripts": {"dev":"next dev","build":"next build","start":"next start","lint":"next lint","typecheck":"tsc --noEmit","test":"vitest run","test:watch":"vitest","supabase:start":"supabase start","supabase:stop":"supabase stop","supabase:migration-up":"supabase migration up --local","supabase:test-db":"supabase test db --local"},
-  "dependencies": {"@supabase/ssr":"^0.6.1","@supabase/supabase-js":"^2.49.1","bcryptjs":"^3.0.2","jose":"^6.0.10","next":"^15.5.0","react":"^19.1.1","react-dom":"^19.1.1"},
-  "devDependencies": {"@types/node":"^22.15.0","@types/react":"^19.1.0","@types/react-dom":"^19.1.0","eslint":"^9.32.0","eslint-config-next":"^15.5.0","typescript":"^5.8.3","vitest":"^3.2.4"}
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "supabase:start": "supabase start",
+    "supabase:stop": "supabase stop",
+    "supabase:migration-up": "supabase migration up --local",
+    "supabase:test-db": "supabase test db --local"
+  },
+  "dependencies": {
+    "@supabase/ssr": "^0.6.1",
+    "@supabase/supabase-js": "^2.49.1",
+    "bcryptjs": "^3.0.2",
+    "jose": "^6.0.10",
+    "next": "^15.5.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "sharp": "^0.35.3"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.0",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "eslint": "^9.32.0",
+    "eslint-config-next": "^15.5.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
 }
