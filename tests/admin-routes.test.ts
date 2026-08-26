@@ -43,6 +43,15 @@ describe('admin route boundaries', () => {
     expect(saveCategory).toHaveBeenCalledWith(state.adminClient, undefined, 'Drinks'); expect(saveProduct).toHaveBeenCalledWith(state.adminClient, undefined, expect.any(Object)); expect(deleteProduct).toHaveBeenCalledWith(state.adminClient, 'product-1');
   });
 
+  it('uses the service-role client for authorized product updates and preserves fields', async () => {
+    const { POST } = await import('../app/api/admin/products/route');
+    const body = { id: 'product-1', name: 'Tea', description: 'Green', categoryId: 'category-1', priceArs: 100, stockQuantity: 2, published: true };
+    expect((await POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json' } }))).status).toBe(200);
+    expect(saveProduct).toHaveBeenCalledWith(state.adminClient, 'product-1', expect.objectContaining({ name: body.name, description: body.description, categoryId: body.categoryId, priceArs: body.priceArs, stockQuantity: body.stockQuantity, published: body.published }));
+    expect(createAdminClient).toHaveBeenCalled();
+    expect(createServerClient).not.toHaveBeenCalled();
+  });
+
   it('enforces reassignment before category deletion at the route boundary', async () => {
     deleteCategory.mockRejectedValueOnce(new Error('Reassign every product before deleting this category')).mockResolvedValueOnce(undefined);
     const { DELETE } = await import('../app/api/admin/categories/[id]/route');
