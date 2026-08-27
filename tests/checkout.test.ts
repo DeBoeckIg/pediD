@@ -2,10 +2,14 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { validateCheckoutInput } from '../src/modules/orders/validation';
 import { checkout } from '../src/modules/orders/service';
 import { formatWhatsAppMessage, getWhatsAppUrl, persistOrderHandoff, ORDER_HANDOFF_STORAGE_KEY } from '../src/modules/orders/whatsapp';
+import { toCheckoutItems } from '../app/catalog/catalog-client';
 
 const valid = { submissionKey: 'key', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash' as const, deliveryMethod: 'pickup' as const, items: [{ productId: 'p1', quantity: 1 }] };
 describe('checkout validation', () => {
   it('rejects empty carts and unavailable-like invalid quantities', () => { expect(validateCheckoutInput({ ...valid, items: [] })).toContain('Cart cannot be empty'); expect(validateCheckoutInput({ ...valid, items: [{ productId: 'p1', quantity: 0 }] })).toContain('Cart quantities are invalid'); });
+});
+describe('cart checkout payload', () => {
+  it('strips client-only catalog fields before the RPC request', () => expect(toCheckoutItems([{ productId: 'p1', quantity: 2, name: 'Tea', priceArs: 1200 }])).toEqual([{ product_id: 'p1', quantity: 2 }]));
 });
 describe('checkout RPC boundary', () => {
   beforeEach(() => vi.restoreAllMocks());
@@ -16,8 +20,12 @@ describe('checkout RPC boundary', () => {
 describe('WhatsApp order handoff', () => {
   it('formats details and encodes the message in the URL', () => {
     const message = formatWhatsAppMessage({ reference: 'PED-1', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash', deliveryMethod: 'pickup', items: [{ name: 'Café & cake', quantity: 2, priceArs: 1500 }] });
-    expect(message).toContain('Total: ARS 3.000');
+     expect(message).toContain('Hola');
+     expect(message).toContain('Total: ARS 3.000');
     expect(getWhatsAppUrl('5493813531217', message)).toContain(`text=${encodeURIComponent(message)}`);
+  });
+  it('does not represent an old cart with missing prices as zero', () => {
+    expect(formatWhatsAppMessage({ reference: 'PED-2', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash', deliveryMethod: 'pickup', items: [{ name: 'Producto antiguo', quantity: 1 }] })).toContain('Total: ARS no disponible');
   });
   it('persists handoff details before cart cleanup', () => {
     const values = new Map<string, string>();

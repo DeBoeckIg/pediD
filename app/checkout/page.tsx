@@ -2,6 +2,7 @@
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { persistOrderHandoff } from '@/modules/orders/whatsapp';
+import { toCheckoutItems } from '../catalog/catalog-client';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -12,12 +13,12 @@ export default function CheckoutPage() {
     const items = JSON.parse(localStorage.getItem('pedid-cart') ?? '[]');
     const response = await fetch('/api/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
       submissionKey: crypto.randomUUID(), customerName: form.get('customerName'), customerSurname: form.get('customerSurname'),
-      paymentMethod: form.get('paymentMethod'), deliveryMethod: form.get('deliveryMethod'), items,
+      paymentMethod: form.get('paymentMethod'), deliveryMethod: form.get('deliveryMethod'), items: toCheckoutItems(items),
     }) });
     const result = await response.json();
     if (!response.ok) { setError(result.error ?? 'Unable to submit order'); return; }
     const reference = result.order_reference ?? result.orderReference ?? result;
-    persistOrderHandoff(sessionStorage, { reference, customerName: String(form.get('customerName')), customerSurname: String(form.get('customerSurname')), paymentMethod: String(form.get('paymentMethod')), deliveryMethod: String(form.get('deliveryMethod')), items: items.map((item: any) => ({ name: item.name ?? item.productName ?? item.product_id ?? item.productId, quantity: item.quantity, priceArs: item.priceArs ?? item.price_ars })) });
+    persistOrderHandoff(sessionStorage, { reference, customerName: String(form.get('customerName')), customerSurname: String(form.get('customerSurname')), paymentMethod: String(form.get('paymentMethod')), deliveryMethod: String(form.get('deliveryMethod')), items: items.map((item: any) => ({ name: item.name ?? item.productName ?? `Producto no identificado (ID: ${item.productId ?? item.product_id ?? 'desconocido'})`, quantity: item.quantity, priceArs: item.priceArs ?? item.price_ars })) });
     localStorage.removeItem('pedid-cart'); router.push(`/order-confirmation?reference=${encodeURIComponent(reference)}`);
   }
   return <main className="mx-auto max-w-xl p-4"><h1 className="text-2xl font-bold">Checkout</h1><form className="mt-4 grid gap-3" onSubmit={submit}>

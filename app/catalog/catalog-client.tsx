@@ -2,13 +2,16 @@
 import { useEffect, useState } from 'react';
 import type { PublicCategory, PublicProduct } from '@/modules/catalog/dto';
 
+export type CartEntry = { productId: string; quantity: number; name: string; priceArs: number };
+export function toCheckoutItems(items: CartEntry[]) { return items.map(({ productId, quantity }) => ({ product_id: productId, quantity })); }
+
 export default function CatalogClient({ categories }: { categories: PublicCategory[] }) {
   const products = categories.flatMap(category => category.products);
-  const [cart, setCart] = useState<{ productId: string; quantity: number }[]>([]);
+  const [cart, setCart] = useState<CartEntry[]>([]);
   useEffect(() => { const saved = localStorage.getItem('pedid-cart'); if (saved) setCart(JSON.parse(saved)); }, []);
   function update(product: PublicProduct, quantity: number) {
     const next = cart.filter(item => item.productId !== product.id);
-    if (quantity > 0) next.push({ productId: product.id, quantity: Math.min(quantity, 99) });
+    if (quantity > 0) next.push({ productId: product.id, quantity: Math.min(quantity, 99), name: product.name, priceArs: product.priceArs });
     setCart(next); localStorage.setItem('pedid-cart', JSON.stringify(next));
   }
   const count = cart.reduce((sum, item) => sum + item.quantity, 0);
