@@ -4,6 +4,7 @@ import { checkout } from '../src/modules/orders/service';
 import { formatWhatsAppMessage, getWhatsAppUrl, persistOrderHandoff, ORDER_HANDOFF_STORAGE_KEY } from '../src/modules/orders/whatsapp';
 import { toCheckoutItems } from '../app/catalog/catalog-client';
 import { normalizeCartEntries } from '../src/modules/orders/cart';
+import { normalizeCheckoutPayload } from '../src/modules/orders/http';
 
 const valid = { submissionKey: 'key', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash' as const, deliveryMethod: 'pickup' as const, items: [{ productId: 'p1', quantity: 1 }] };
 describe('checkout validation', () => {
@@ -24,6 +25,15 @@ describe('checkout RPC boundary', () => {
   it('calls the public RPC with product_id payload and returns its reference', async () => { const rpc = vi.fn(async () => ({ data: { order_reference: 'ref' }, error: null })); expect(await checkout({ rpc }, valid)).toEqual({ order_reference: 'ref' }); expect(rpc).toHaveBeenCalledWith('checkout', expect.objectContaining({ items: [{ product_id: 'p1', quantity: 1 }] })); });
   it('preserves duplicate submission responses for idempotent RPC handling', async () => { const rpc = vi.fn().mockResolvedValue({ data: { order_reference: 'same' }, error: null }); const client = { rpc }; await checkout(client, valid); await checkout(client, valid); expect(rpc).toHaveBeenCalledTimes(2); expect((await checkout(client, valid)).order_reference).toBe('same'); });
   it('surfaces unavailable product errors from the RPC', async () => { await expect(checkout({ rpc: async () => ({ data: null, error: new Error('Product unavailable') }) }, valid)).rejects.toThrow('Product unavailable'); });
+});
+describe('checkout HTTP boundary', () => {
+  it('normalizes the browser/RPC item shape for the domain service', () => {
+    expect(normalizeCheckoutPayload({ ...valid, items: [{ product_id: 'p1', quantity: 2 }] })).toEqual({ ...valid, items: [{ product_id: 'p1', productId: 'p1', quantity: 2 }] });
+  });
+  it('does not turn malformed snake_case items into valid service input', () => {
+    const normalized = normalizeCheckoutPayload({ ...valid, items: [{ product_id: '', quantity: 0 }] });
+    expect(validateCheckoutInput(normalized as Parameters<typeof validateCheckoutInput>[0])).toContain('Cart quantities are invalid');
+  });
 });
 describe('WhatsApp order handoff', () => {
   it('formats details and encodes the message in the URL', () => {
