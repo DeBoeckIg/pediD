@@ -44,4 +44,19 @@ describe('admin order management', () => {
     expect(validateStatusTransition('pending', 'completed')).not.toEqual([]);
     expect(validateStatusTransition('completed', 'pending')).not.toEqual([]);
   });
+
+  it('calculates totals from multiple persisted order items', async () => {
+    const { calculateOrderTotal } = await import('../src/modules/orders/totals');
+    expect(calculateOrderTotal([
+      { unit_price_ars: 1250, quantity: 2 },
+      { unit_price_ars: '300.50', quantity: 3 },
+    ])).toBe(3401.5);
+  });
+
+  it('returns zero for missing, empty, or malformed items', async () => {
+    const { calculateOrderTotal } = await import('../src/modules/orders/totals');
+    expect(calculateOrderTotal(undefined)).toBe(0);
+    expect(calculateOrderTotal([])).toBe(0);
+    expect(calculateOrderTotal([{ unit_price_ars: 'not-a-price', quantity: 2 }, {}])).toBe(0);
+  });
 });
