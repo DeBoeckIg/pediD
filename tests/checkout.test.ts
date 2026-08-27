@@ -3,12 +3,20 @@ import { validateCheckoutInput } from '../src/modules/orders/validation';
 import { checkout } from '../src/modules/orders/service';
 import { formatWhatsAppMessage, getWhatsAppUrl, persistOrderHandoff, ORDER_HANDOFF_STORAGE_KEY } from '../src/modules/orders/whatsapp';
 import { toCheckoutItems } from '../app/catalog/catalog-client';
+import { normalizeCartEntries } from '../src/modules/orders/cart';
 
 const valid = { submissionKey: 'key', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash' as const, deliveryMethod: 'pickup' as const, items: [{ productId: 'p1', quantity: 1 }] };
 describe('checkout validation', () => {
   it('rejects empty carts and unavailable-like invalid quantities', () => { expect(validateCheckoutInput({ ...valid, items: [] })).toContain('Cart cannot be empty'); expect(validateCheckoutInput({ ...valid, items: [{ productId: 'p1', quantity: 0 }] })).toContain('Cart quantities are invalid'); });
 });
 describe('cart checkout payload', () => {
+  it('normalizes legacy and string-valued cart entries', () => expect(normalizeCartEntries(JSON.stringify([
+    { product_id: 'legacy', quantity: '2', productName: 'Tea', price_ars: '1200' },
+  ]))).toEqual([{ productId: 'legacy', quantity: 2, name: 'Tea', priceArs: 1200 }]));
+  it('returns an empty cart for malformed JSON', () => expect(normalizeCartEntries('{bad json')).toEqual([]));
+  it('filters entries with invalid quantities or product IDs', () => expect(normalizeCartEntries(JSON.stringify([
+    { productId: 'zero', quantity: 0 }, { productId: 'nan', quantity: 'nope' }, { product_id: '', quantity: 1 }, { productId: 'ok', quantity: 1 },
+  ]))).toEqual([{ productId: 'ok', quantity: 1 }]));
   it('strips client-only catalog fields before the RPC request', () => expect(toCheckoutItems([{ productId: 'p1', quantity: 2, name: 'Tea', priceArs: 1200 }])).toEqual([{ product_id: 'p1', quantity: 2 }]));
 });
 describe('checkout RPC boundary', () => {

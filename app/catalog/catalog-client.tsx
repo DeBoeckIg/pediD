@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import type { PublicCategory, PublicProduct } from '@/modules/catalog/dto';
 
-export type CartEntry = { productId: string; quantity: number; name: string; priceArs: number };
+export type CartEntry = { productId: string; quantity: number; name?: string; priceArs?: number };
 export function toCheckoutItems(items: CartEntry[]) { return items.map(({ productId, quantity }) => ({ product_id: productId, quantity })); }
 
 export default function CatalogClient({ categories }: { categories: PublicCategory[] }) {

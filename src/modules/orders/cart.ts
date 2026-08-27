@@ -1,0 +1,34 @@
+export type NormalizedCartEntry = {
+  productId: string;
+  quantity: number;
+  name?: string;
+  priceArs?: number;
+};
+
+function positiveInteger(value: unknown): number | null {
+  const number = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
+  return Number.isFinite(number) && Number.isInteger(number) && number > 0 ? number : null;
+}
+
+export function normalizeCartEntries(raw: string | null): NormalizedCartEntry[] {
+  if (!raw) return [];
+
+  let parsed: unknown;
+  try { parsed = JSON.parse(raw); } catch { return []; }
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed.flatMap((entry: unknown) => {
+    if (!entry || typeof entry !== 'object') return [];
+    const value = entry as Record<string, unknown>;
+    const productId = value.productId ?? value.product_id;
+    const quantity = positiveInteger(value.quantity);
+    if (typeof productId !== 'string' || !productId.trim() || quantity === null) return [];
+
+    const normalized: NormalizedCartEntry = { productId: productId.trim(), quantity };
+    const name = value.name ?? value.productName;
+    if (typeof name === 'string' && name.trim()) normalized.name = name;
+    const price = value.priceArs ?? value.price_ars;
+    if ((typeof price === 'number' || typeof price === 'string') && Number.isFinite(Number(price))) normalized.priceArs = Number(price);
+    return [normalized];
+  });
+}
