@@ -3,7 +3,7 @@ import { validateCheckoutInput } from '../src/modules/orders/validation';
 import { checkout } from '../src/modules/orders/service';
 import { formatWhatsAppMessage, getWhatsAppUrl, persistOrderHandoff, ORDER_HANDOFF_STORAGE_KEY } from '../src/modules/orders/whatsapp';
 import { toCheckoutItems } from '../app/catalog/catalog-client';
-import { normalizeCartEntries } from '../src/modules/orders/cart';
+import { formatArsAmount, getCartEntrySubtotal, getCartTotal, normalizeCartEntries } from '../src/modules/orders/cart';
 import { normalizeCheckoutPayload } from '../src/modules/orders/http';
 
 const valid = { submissionKey: 'key', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash' as const, deliveryMethod: 'pickup' as const, items: [{ productId: 'p1', quantity: 1 }] };
@@ -11,6 +11,17 @@ describe('checkout validation', () => {
   it('rejects empty carts and unavailable-like invalid quantities', () => { expect(validateCheckoutInput({ ...valid, items: [] })).toContain('Cart cannot be empty'); expect(validateCheckoutInput({ ...valid, items: [{ productId: 'p1', quantity: 0 }] })).toContain('Cart quantities are invalid'); });
 });
 describe('cart checkout payload', () => {
+  it('formats priced subtotals and totals in ARS', () => {
+    const items = normalizeCartEntries(JSON.stringify([{ productId: 'p1', quantity: 2, name: 'Tea', priceArs: 1200 }]));
+    expect(getCartEntrySubtotal(items[0])).toBe(2400);
+    expect(formatArsAmount(getCartTotal(items))).toBe('ARS 2.400');
+  });
+  it('shows unavailable values for empty and legacy price-less carts', () => {
+    const items = normalizeCartEntries(JSON.stringify([{ product_id: 'old', quantity: 1 }]));
+    expect(formatArsAmount(getCartTotal([]))).toBe('Price unavailable');
+    expect(formatArsAmount(getCartTotal(items))).toBe('Price unavailable');
+    expect(formatArsAmount(getCartEntrySubtotal(items[0]))).toBe('Price unavailable');
+  });
   it('normalizes legacy and string-valued cart entries', () => expect(normalizeCartEntries(JSON.stringify([
     { product_id: 'legacy', quantity: '2', productName: 'Tea', price_ars: '1200' },
   ]))).toEqual([{ productId: 'legacy', quantity: 2, name: 'Tea', priceArs: 1200 }]));

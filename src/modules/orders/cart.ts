@@ -35,6 +35,22 @@ export function normalizeCartEntries(raw: string | null): NormalizedCartEntry[] 
   });
 }
 
+export function formatArsAmount(value: number | undefined): string {
+  return typeof value === 'number' && Number.isFinite(value) ? `ARS ${value.toLocaleString('es-AR')}` : 'Price unavailable';
+}
+
+export function getCartEntrySubtotal(entry: NormalizedCartEntry): number | undefined {
+  return entry.priceArs === undefined ? undefined : entry.priceArs * entry.quantity;
+}
+
+export function getCartTotal(entries: NormalizedCartEntry[]): number | undefined {
+  if (!entries.length) return undefined;
+  const subtotals = entries.map(getCartEntrySubtotal);
+  return subtotals.every(subtotal => subtotal !== undefined)
+    ? subtotals.reduce((total, subtotal) => total + subtotal!, 0)
+    : undefined;
+}
+
 export function pruneCartEntries(entries: NormalizedCartEntry[], products: CartProduct[]): NormalizedCartEntry[] {
   const availableProductIds = new Set(products.filter(product => product.availability === 'available').map(product => product.id));
   return entries.filter(entry => availableProductIds.has(entry.productId));
