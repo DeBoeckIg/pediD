@@ -7,6 +7,7 @@ This slice bootstraps the Next.js/TypeScript application, Supabase schema, priva
 1. Copy `.env.example` to `.env.local` and provide the Supabase URL, keys, and a random session secret.
    For the local stack, use the URL and keys printed by `supabase status`:
    `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` and the local anon/service-role keys.
+   Set `NEXT_PUBLIC_WHATSAPP_NUMBER` to the digits-only international business number (without `+` or spaces).
 2. Install dependencies with `npm install`.
 3. Install Docker Desktop and the Supabase CLI separately when local runtime validation is needed; Docker is intentionally not a project dependency.
 4. Start the project-local Supabase stack with `npm run supabase:start`.
@@ -32,6 +33,7 @@ This slice bootstraps the Next.js/TypeScript application, Supabase schema, priva
 | `ADMIN_SESSION_SECRET` | Server-only admin session signing | At least 32 random characters |
 | `PEDID_BUSINESS_CODE` | Local provisioning configuration | Development-only value |
 | `PROVISIONING_SECRET` | Server-only provisioning endpoint | Development-only secret |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | WhatsApp order handoff | Digits-only international number |
 
 Never expose `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_SESSION_SECRET`, or `PROVISIONING_SECRET` to browser code or source control.
 

@@ -1,6 +1,7 @@
 'use client';
 import { FormEvent, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { persistOrderHandoff } from '@/modules/orders/whatsapp';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -15,7 +16,9 @@ export default function CheckoutPage() {
     }) });
     const result = await response.json();
     if (!response.ok) { setError(result.error ?? 'Unable to submit order'); return; }
-    localStorage.removeItem('pedid-cart'); router.push(`/order-confirmation?reference=${encodeURIComponent(result.order_reference ?? result.orderReference ?? result)}`);
+    const reference = result.order_reference ?? result.orderReference ?? result;
+    persistOrderHandoff(sessionStorage, { reference, customerName: String(form.get('customerName')), customerSurname: String(form.get('customerSurname')), paymentMethod: String(form.get('paymentMethod')), deliveryMethod: String(form.get('deliveryMethod')), items: items.map((item: any) => ({ name: item.name ?? item.productName ?? item.product_id ?? item.productId, quantity: item.quantity, priceArs: item.priceArs ?? item.price_ars })) });
+    localStorage.removeItem('pedid-cart'); router.push(`/order-confirmation?reference=${encodeURIComponent(reference)}`);
   }
   return <main className="mx-auto max-w-xl p-4"><h1 className="text-2xl font-bold">Checkout</h1><form className="mt-4 grid gap-3" onSubmit={submit}>
     <input name="customerName" required placeholder="Name" className="rounded border p-2" /><input name="customerSurname" required placeholder="Surname" className="rounded border p-2" />
