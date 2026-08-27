@@ -5,6 +5,8 @@ export type NormalizedCartEntry = {
   priceArs?: number;
 };
 
+type CartProduct = { id: string; availability: 'available' | 'unavailable' };
+
 function positiveInteger(value: unknown): number | null {
   const number = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
   return Number.isFinite(number) && Number.isInteger(number) && number > 0 ? number : null;
@@ -31,4 +33,9 @@ export function normalizeCartEntries(raw: string | null): NormalizedCartEntry[] 
     if ((typeof price === 'number' || typeof price === 'string') && Number.isFinite(Number(price))) normalized.priceArs = Number(price);
     return [normalized];
   });
+}
+
+export function pruneCartEntries(entries: NormalizedCartEntry[], products: CartProduct[]): NormalizedCartEntry[] {
+  const availableProductIds = new Set(products.filter(product => product.availability === 'available').map(product => product.id));
+  return entries.filter(entry => availableProductIds.has(entry.productId));
 }

@@ -1,17 +1,17 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { PublicCategory, PublicProduct } from '@/modules/catalog/dto';
-import { normalizeCartEntries } from '@/modules/orders/cart';
+import { normalizeCartEntries, pruneCartEntries } from '@/modules/orders/cart';
 
 export type CartEntry = { productId: string; quantity: number; name?: string; priceArs?: number };
 export function toCheckoutItems(items: CartEntry[]) { return items.map(({ productId, quantity }) => ({ product_id: productId, quantity })); }
 
 export default function CatalogClient({ categories }: { categories: PublicCategory[] }) {
-  const products = categories.flatMap(category => category.products);
+  const products = useMemo(() => categories.flatMap(category => category.products), [categories]);
   const [cart, setCart] = useState<CartEntry[]>([]);
-  useEffect(() => { const saved = localStorage.getItem('pedid-cart'); const normalized = normalizeCartEntries(saved); setCart(normalized); if (saved) localStorage.setItem('pedid-cart', JSON.stringify(normalized)); }, []);
+  useEffect(() => { const saved = localStorage.getItem('pedid-cart'); const pruned = pruneCartEntries(normalizeCartEntries(saved), products); setCart(pruned); if (saved) localStorage.setItem('pedid-cart', JSON.stringify(pruned)); }, [products]);
   function update(product: PublicProduct, quantity: number) {
-    const next = normalizeCartEntries(localStorage.getItem('pedid-cart')).filter(item => item.productId !== product.id);
+    const next = pruneCartEntries(normalizeCartEntries(localStorage.getItem('pedid-cart')), products).filter(item => item.productId !== product.id);
     if (quantity > 0) next.push({ productId: product.id, quantity: Math.min(quantity, 99), name: product.name, priceArs: product.priceArs });
     setCart(next); localStorage.setItem('pedid-cart', JSON.stringify(next));
   }
