@@ -43,6 +43,16 @@ describe('admin route boundaries', () => {
     expect(saveCategory).toHaveBeenCalledWith(state.adminClient, undefined, 'Drinks'); expect(saveProduct).toHaveBeenCalledWith(state.adminClient, undefined, expect.any(Object)); expect(deleteProduct).toHaveBeenCalledWith(state.adminClient, 'product-1');
   });
 
+  it('uses the admin client and rejects unauthorized category updates', async () => {
+    const { POST } = await import('../app/api/admin/categories/route');
+    const request = () => new Request('http://localhost', { method: 'POST', body: JSON.stringify({ id: 'category-1', name: 'Hot Drinks' }), headers: { 'content-type': 'application/json' } });
+    expect((await POST(request())).status).toBe(200);
+    expect(saveCategory).toHaveBeenCalledWith(state.adminClient, 'category-1', 'Hot Drinks');
+    expect(createAdminClient).toHaveBeenCalled(); expect(createServerClient).not.toHaveBeenCalled();
+    state.authorized = false;
+    expect((await POST(request())).status).toBe(401);
+  });
+
   it('uses the service-role client for authorized product updates and preserves fields', async () => {
     const { POST } = await import('../app/api/admin/products/route');
     const body = { id: 'product-1', name: 'Tea', description: 'Green', categoryId: 'category-1', priceArs: 100, stockQuantity: 2, published: true };
