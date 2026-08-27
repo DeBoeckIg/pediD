@@ -1,5 +1,5 @@
 import { requireAdmin } from '@/modules/auth/guard';
-import { createSupabaseServerClient } from '@/lib/supabase/server';
+import { createSupabaseAdminClient } from '@/lib/supabase/server';
 import { listAdminOrders } from '@/modules/orders/admin-service';
 
 const label = (value: string) => value.replace('_', ' ');
@@ -7,7 +7,7 @@ const label = (value: string) => value.replace('_', ' ');
 export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ reference?: string; from?: string; to?: string }> }) {
   await requireAdmin();
   const filters = await searchParams;
-  const orders = await listAdminOrders(await createSupabaseServerClient(), filters);
+  const orders = await listAdminOrders(createSupabaseAdminClient(), filters);
 
   return <main className="mx-auto max-w-6xl p-4">
     <nav className="mb-4 flex gap-4"><a href="/admin/catalog">Catalog</a><a href="/admin/orders">Orders</a></nav>

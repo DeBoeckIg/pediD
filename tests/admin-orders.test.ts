@@ -2,8 +2,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const state = { authorized: true };
 const requireAdmin = vi.fn(async () => { if (!state.authorized) throw new Error('Unauthorized'); });
+const createServerClient = vi.fn(async () => ({}));
+const createAdminClient = vi.fn(() => ({}));
 vi.mock('@/modules/auth/guard', () => ({ requireAdmin }));
-vi.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: vi.fn(async () => ({})) }));
+vi.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: createServerClient, createSupabaseAdminClient: createAdminClient }));
 
 describe('admin order management', () => {
   beforeEach(() => { state.authorized = true; vi.clearAllMocks(); });
@@ -23,6 +25,16 @@ describe('admin order management', () => {
     state.authorized = false;
     const { default: Page } = await import('../app/admin/orders/page');
     await expect(Page({ searchParams: Promise.resolve({}) })).rejects.toThrow('Unauthorized');
+  });
+
+  it('uses the service-role client only after the admin guard', async () => {
+    const source = await import('node:fs/promises').then(fs => fs.readFile('app/admin/orders/page.tsx', 'utf8'));
+    const guardPosition = source.indexOf('await requireAdmin()');
+    const clientPosition = source.indexOf('createSupabaseAdminClient()');
+
+    expect(source).toContain("import { createSupabaseAdminClient } from '@/lib/supabase/server';");
+    expect(source).not.toContain('createSupabaseServerClient');
+    expect(clientPosition).toBeGreaterThan(guardPosition);
   });
 
   it('allows only explicit forward or cancellation transitions', async () => {
