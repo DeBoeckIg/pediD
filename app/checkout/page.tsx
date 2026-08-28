@@ -26,13 +26,13 @@ export default function CheckoutPage() {
     localStorage.removeItem('pedid-cart'); router.push(`/order-confirmation?reference=${encodeURIComponent(reference)}`);
   }
   const total = getCartTotal(items);
-  return <main className="mx-auto max-w-xl p-4"><h1 className="text-2xl font-bold">Finalizar compra</h1>
+  return <main className="mx-auto max-w-3xl px-4 py-8 sm:px-6"><a className="text-sm font-semibold text-indigo-600 hover:text-indigo-700" href="/catalog">← Volver al catálogo</a><h1 className="mt-3 text-3xl font-bold tracking-tight">Finalizar compra</h1>
     <section className="mt-4 rounded border p-4" aria-label="Resumen del pedido"><h2 className="font-semibold">Resumen del pedido</h2>{items.length ? <><ul className="mt-2 grid gap-2">{items.map(item => <li className="flex justify-between gap-4" key={item.productId}><span>{item.name ?? `Producto ${item.productId}`} × {item.quantity} ({formatArsAmount(item.priceArs)} cada uno)</span><span>{formatArsAmount(getCartEntrySubtotal(item))}</span></li>)}</ul><p className="mt-3 border-t pt-3 font-semibold">Total: {formatArsAmount(total)}</p></> : <p className="mt-2">Tu carrito está vacío. Agregá un producto antes de finalizar la compra.</p>}</section>
-    <form className="mt-4 grid gap-3" onSubmit={submit}>
+     <form className="mt-6 grid gap-3 rounded-xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6" onSubmit={submit}>
     <fieldset disabled={!items.length} className="grid gap-3">
-    <input name="customerName" required placeholder="Nombre" aria-label="Nombre" className="rounded border p-2" /><input name="customerSurname" required placeholder="Apellido" aria-label="Apellido" className="rounded border p-2" />
-    <label>Medio de pago<select name="paymentMethod" className="ml-2 rounded border p-2"><option value="cash">Efectivo</option><option value="bank_transfer">Transferencia bancaria</option></select></label>
-    <label>Modalidad de entrega<select name="deliveryMethod" className="ml-2 rounded border p-2"><option value="pickup">Retiro</option><option value="meeting_point">Punto de encuentro</option></select></label>
-    {error && <p role="alert">{error}</p>}<button className="rounded bg-black p-2 text-white" type="submit">Confirmar pedido</button></fieldset>
+     <div className="grid gap-3 sm:grid-cols-2"><label className="grid gap-1 text-sm font-medium">Nombre<input name="customerName" required placeholder="Nombre" aria-label="Nombre" className="rounded-lg border border-slate-300 p-2.5 font-normal focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" /></label><label className="grid gap-1 text-sm font-medium">Apellido<input name="customerSurname" required placeholder="Apellido" aria-label="Apellido" className="rounded-lg border border-slate-300 p-2.5 font-normal focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" /></label></div>
+     <label className="grid gap-1 text-sm font-medium">Medio de pago<select name="paymentMethod" className="rounded-lg border border-slate-300 p-2.5 font-normal focus:border-indigo-500 focus:outline-none"><option value="cash">Efectivo</option><option value="bank_transfer">Transferencia bancaria</option></select></label>
+     <label className="grid gap-1 text-sm font-medium">Modalidad de entrega<select name="deliveryMethod" className="rounded-lg border border-slate-300 p-2.5 font-normal focus:border-indigo-500 focus:outline-none"><option value="pickup">Retiro</option><option value="meeting_point">Punto de encuentro</option></select></label>
+     {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</p>}<button className="rounded-lg bg-indigo-600 p-3 font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50" type="submit">Confirmar pedido</button></fieldset>
   </form></main>;
 }

@@ -32,11 +32,11 @@ export default function AdminLoginForm() {
   }
 
   return (
-    <form className="mt-4 grid gap-3" onSubmit={submit}>
-      <label>Código del comercio<input className="mt-1 w-full rounded border p-2" name="businessCode" aria-label="Código del comercio" required /></label>
-      <label>Contraseña<input className="mt-1 w-full rounded border p-2" name="password" aria-label="Contraseña" type="password" required /></label>
-      {error && <p role="alert">{error}</p>}
-      <button className="rounded bg-black p-2 text-white" disabled={pending} type="submit">{pending ? 'Ingresando…' : 'Ingresar'}</button>
+    <form className="mt-6 grid gap-4" onSubmit={submit}>
+      <label className="grid gap-1 text-sm font-medium">Código del comercio<input className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 font-normal focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" name="businessCode" aria-label="Código del comercio" required /></label>
+      <label className="grid gap-1 text-sm font-medium">Contraseña<input className="mt-1 w-full rounded-lg border border-slate-300 p-2.5 font-normal focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200" name="password" aria-label="Contraseña" type="password" required /></label>
+      {error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700" role="alert">{error}</p>}
+      <button className="rounded-lg bg-indigo-600 p-3 font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50" disabled={pending} type="submit">{pending ? 'Ingresando…' : 'Ingresar'}</button>
     </form>
   );
 }
