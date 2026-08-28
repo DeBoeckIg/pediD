@@ -35,8 +35,8 @@ export function normalizeCartEntries(raw: string | null): NormalizedCartEntry[] 
   });
 }
 
-export function formatArsAmount(value: number | undefined): string {
-  return typeof value === 'number' && Number.isFinite(value) ? `ARS ${value.toLocaleString('es-AR')}` : 'Precio no disponible';
+export function formatArsAmount(value: number | undefined, currencyLabel = 'ARS'): string {
+  return typeof value === 'number' && Number.isFinite(value) ? `${currencyLabel} ${value.toLocaleString('es-AR')}` : 'Precio no disponible';
 }
 
 export function getCartEntrySubtotal(entry: NormalizedCartEntry): number | undefined {

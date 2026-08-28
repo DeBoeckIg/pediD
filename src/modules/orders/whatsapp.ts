@@ -13,11 +13,11 @@ export function persistOrderHandoff(storage: Pick<Storage, 'setItem'>, handoff: 
   storage.setItem(ORDER_HANDOFF_STORAGE_KEY, JSON.stringify(handoff));
 }
 
-export function formatWhatsAppMessage(handoff: OrderHandoff): string {
+export function formatWhatsAppMessage(handoff: OrderHandoff, currencyLabel = 'ARS'): string {
   const items = handoff.items.map(item => `- ${item.name} × ${item.quantity}`).join('\n');
   const hasAllPrices = handoff.items.every(item => typeof item.priceArs === 'number' && Number.isFinite(item.priceArs));
   const total = hasAllPrices ? handoff.items.reduce((sum, item) => sum + item.priceArs! * item.quantity, 0).toLocaleString('es-AR') : 'no disponible';
-  return `Hola, quisiera confirmar el pedido ${handoff.reference}.\nCliente: ${handoff.customerName} ${handoff.customerSurname}\nPago: ${handoff.paymentMethod}\nEntrega: ${handoff.deliveryMethod}\nProductos:\n${items}\nTotal: ARS ${total}`;
+  return `Hola, quisiera confirmar el pedido ${handoff.reference}.\nCliente: ${handoff.customerName} ${handoff.customerSurname}\nPago: ${handoff.paymentMethod}\nEntrega: ${handoff.deliveryMethod}\nProductos:\n${items}\nTotal: ${currencyLabel} ${total}`;
 }
 
 export function getWhatsAppUrl(number: string | undefined, message: string): string | null {

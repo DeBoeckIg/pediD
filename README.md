@@ -7,7 +7,7 @@ This slice bootstraps the Next.js/TypeScript application, Supabase schema, priva
 1. Copy `.env.example` to `.env.local` and provide the Supabase URL, keys, and a random session secret.
    For the local stack, use the URL and keys printed by `supabase status`:
    `NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54321` and the local anon/service-role keys.
-   Set `NEXT_PUBLIC_WHATSAPP_NUMBER` to the digits-only international business number (without `+` or spaces).
+   Set the public installation variables below for each customer installation.
 2. Install dependencies with `npm install`.
 3. Install Docker Desktop and the Supabase CLI separately when local runtime validation is needed; Docker is intentionally not a project dependency.
 4. Start the project-local Supabase stack with `npm run supabase:start`.
@@ -34,7 +34,16 @@ This slice bootstraps the Next.js/TypeScript application, Supabase schema, priva
 | `PEDID_BUSINESS_CODE` | Local provisioning configuration | Development-only value |
 | `PROVISIONING_SECRET` | Server-only provisioning endpoint | Development-only secret |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER` | WhatsApp order handoff | Digits-only international number |
+| `NEXT_PUBLIC_BUSINESS_NAME` | Full visible business name and page title | `pediD` |
+| `NEXT_PUBLIC_SHORT_LABEL` | Compact header/login label | `pediD` |
+| `NEXT_PUBLIC_PRIMARY_COLOR` | Safe Tailwind color preset | `indigo` (`indigo`, `emerald`, `blue`, `rose`) |
+| `NEXT_PUBLIC_CURRENCY_LABEL` | Visible currency label | `ARS` |
+| `NEXT_PUBLIC_LOGO_PATH` | Optional public logo path or URL | Empty |
 
 Never expose `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_SESSION_SECRET`, or `PROVISIONING_SECRET` to browser code or source control.
+
+### Per-installation setup
+
+Each deployment represents one customer. Copy `.env.example` to `.env.local` (or configure the deployment environment), set the five public branding/contact values for that customer, and rebuild the application. These values change visible branding, currency, and the WhatsApp handoff without changing business logic. Do not add secrets to `NEXT_PUBLIC_*` variables.
 
 The public projection deliberately exposes `availability`, not stock quantity. Orders and cleanup jobs are service-role-only. This installation is intentionally single-business, ARS-integer, no-variants, no-shipping, and no-customer-account.

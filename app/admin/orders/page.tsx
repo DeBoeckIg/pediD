@@ -2,6 +2,7 @@ import { requireAdmin } from '@/modules/auth/guard';
 import { createSupabaseAdminClient } from '@/lib/supabase/server';
 import { listAdminOrders } from '@/modules/orders/admin-service';
 import { calculateOrderTotal } from '@/modules/orders/totals';
+import { installationConfig } from '@/config/installation';
 
 const label = (value: string) => ({ pending: 'pendiente', confirmed: 'confirmado', completed: 'completado', cancelled: 'cancelado', cash: 'efectivo', bank_transfer: 'transferencia bancaria', pickup: 'retiro', meeting_point: 'punto de encuentro' }[value] ?? value.replace('_', ' '));
 
@@ -23,7 +24,7 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
       {orders.map((order: any) => <article className="rounded border p-4" key={order.id}>
         <div className="flex flex-wrap justify-between gap-2"><h2 className="font-semibold">{order.order_reference}</h2><time dateTime={order.created_at}>{new Date(order.created_at).toLocaleString()}</time></div>
         <p>{order.customer_name} {order.customer_surname}</p>
-        <p>Status: {label(order.status)} · Payment: {label(order.payment_method)} · Delivery: {label(order.delivery_method)} · Total: ARS {calculateOrderTotal(order.order_items).toLocaleString('es-AR')}</p>
+        <p>Estado: {label(order.status)} · Pago: {label(order.payment_method)} · Entrega: {label(order.delivery_method)} · Total: {installationConfig.currencyLabel} {calculateOrderTotal(order.order_items).toLocaleString('es-AR')}</p>
         <form className="mt-2 flex gap-2" action="/api/admin/orders/status" method="post"><input type="hidden" name="orderId" value={order.id} /><select name="status" defaultValue={order.status} className="rounded border p-2" aria-label={`Status for ${order.order_reference}`}><option value="pending">Pending</option><option value="confirmed">Confirmed</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select><button className="rounded bg-black px-3 text-white" type="submit">Update status</button></form>
         <ul className="mt-3 list-inside list-disc">{(order.order_items ?? []).map((item: any) => <li key={item.id}>{item.quantity} × {item.product_name} (${Number(item.unit_price_ars).toLocaleString('es-AR')} each)</li>)}</ul>
       </article>)}
