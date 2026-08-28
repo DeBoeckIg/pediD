@@ -78,6 +78,17 @@ describe('admin route boundaries', () => {
     expect((await POST(request())).status).toBe(401);
   });
 
+  it('redirects native order status forms back to the orders page', async () => {
+    const { POST } = await import('../app/api/admin/orders/status/route');
+    const form = new FormData();
+    form.set('orderId', 'order-1');
+    form.set('status', 'confirmed');
+    const response = await POST(new Request('http://localhost/api/admin/orders/status', { method: 'POST', body: form }));
+
+    expect(response.status).toBe(303);
+    expect(response.headers.get('location')).toBe('http://localhost/admin/orders');
+  });
+
   it('keeps the login endpoint contract and only issues a session for valid credentials', async () => {
     const { POST } = await import('../app/api/admin/login/route');
     const request = (body: unknown) => new Request('http://localhost/api/admin/login', { method: 'POST', body: JSON.stringify(body), headers: { 'content-type': 'application/json' } });
