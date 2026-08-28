@@ -5,10 +5,25 @@ import { formatWhatsAppMessage, getWhatsAppUrl, persistOrderHandoff, ORDER_HANDO
 import { toCheckoutItems } from '../app/catalog/catalog-client';
 import { formatArsAmount, getCartEntrySubtotal, getCartTotal, normalizeCartEntries } from '../src/modules/orders/cart';
 import { normalizeCheckoutPayload } from '../src/modules/orders/http';
+import { generateSubmissionKey } from '../src/modules/orders/submission-key';
 
 const valid = { submissionKey: 'key', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash' as const, deliveryMethod: 'pickup' as const, items: [{ productId: 'p1', quantity: 1 }] };
 describe('checkout validation', () => {
   it('rejects empty carts and unavailable-like invalid quantities', () => { expect(validateCheckoutInput({ ...valid, items: [] })).toContain('Cart cannot be empty'); expect(validateCheckoutInput({ ...valid, items: [{ productId: 'p1', quantity: 0 }] })).toContain('Cart quantities are invalid'); });
+});
+describe('submission key generation', () => {
+  it('uses randomUUID when available', () => expect(generateSubmissionKey({ randomUUID: () => 'native-key' })).toBe('native-key'));
+  it('generates a UUID v4 with getRandomValues', () => {
+    const cryptoSource = { getRandomValues: (bytes: Uint8Array) => { bytes.fill(0); return bytes; } };
+    expect(generateSubmissionKey(cryptoSource)).toBe('00000000-0000-4000-8000-000000000000');
+  });
+  it('falls back to a unique UUID-shaped key without Web Crypto', () => {
+    const first = generateSubmissionKey(null);
+    const second = generateSubmissionKey(null);
+    expect(first).toMatch(/^[0-9a-f-]{36}$/);
+    expect(second).toMatch(/^[0-9a-f-]{36}$/);
+    expect(first).not.toBe(second);
+  });
 });
 describe('cart checkout payload', () => {
   it('formats priced subtotals and totals in ARS', () => {

@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation';
 import { persistOrderHandoff } from '@/modules/orders/whatsapp';
 import { formatArsAmount, getCartEntrySubtotal, getCartTotal, normalizeCartEntries, type NormalizedCartEntry } from '@/modules/orders/cart';
 import { toCheckoutItems } from '../catalog/catalog-client';
+import { generateSubmissionKey } from '@/modules/orders/submission-key';
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function CheckoutPage() {
     const currentItems = normalizeCartEntries(localStorage.getItem('pedid-cart'));
     if (!currentItems.length) { setItems([]); setError('Tu carrito está vacío o no es válido. Agregá un producto e intentá nuevamente.'); return; }
     const response = await fetch('/api/checkout', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({
-      submissionKey: crypto.randomUUID(), customerName: form.get('customerName'), customerSurname: form.get('customerSurname'),
+      submissionKey: generateSubmissionKey(), customerName: form.get('customerName'), customerSurname: form.get('customerSurname'),
       paymentMethod: form.get('paymentMethod'), deliveryMethod: form.get('deliveryMethod'), items: toCheckoutItems(currentItems),
     }) });
     const result = await response.json();
