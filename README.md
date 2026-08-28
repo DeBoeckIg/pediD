@@ -46,4 +46,8 @@ Never expose `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_SESSION_SECRET`, or `PROVISIONI
 
 Each deployment represents one customer. Copy `.env.example` to `.env.local` (or configure the deployment environment), set the five public branding/contact values for that customer, and rebuild the application. These values change visible branding, currency, and the WhatsApp handoff without changing business logic. Do not add secrets to `NEXT_PUBLIC_*` variables.
 
+For a fully customized customer frontend, keep the `/api/*` routes and follow
+the [frontend integration guide](docs/frontend-integration.md). The custom UI
+must consume the API rather than accessing Supabase directly.
+
 The public projection deliberately exposes `availability`, not stock quantity. Orders and cleanup jobs are service-role-only. This installation is intentionally single-business, ARS-integer, no-variants, no-shipping, and no-customer-account.
