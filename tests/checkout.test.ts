@@ -18,9 +18,9 @@ describe('cart checkout payload', () => {
   });
   it('shows unavailable values for empty and legacy price-less carts', () => {
     const items = normalizeCartEntries(JSON.stringify([{ product_id: 'old', quantity: 1 }]));
-    expect(formatArsAmount(getCartTotal([]))).toBe('Price unavailable');
-    expect(formatArsAmount(getCartTotal(items))).toBe('Price unavailable');
-    expect(formatArsAmount(getCartEntrySubtotal(items[0]))).toBe('Price unavailable');
+    expect(formatArsAmount(getCartTotal([]))).toBe('Precio no disponible');
+    expect(formatArsAmount(getCartTotal(items))).toBe('Precio no disponible');
+    expect(formatArsAmount(getCartEntrySubtotal(items[0]))).toBe('Precio no disponible');
   });
   it('normalizes legacy and string-valued cart entries', () => expect(normalizeCartEntries(JSON.stringify([
     { product_id: 'legacy', quantity: '2', productName: 'Tea', price_ars: '1200' },

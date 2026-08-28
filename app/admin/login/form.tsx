@@ -21,11 +21,11 @@ export default function AdminLoginForm() {
       });
       if (!response.ok) {
         const body = await response.json().catch(() => ({}));
-        throw new Error(body.error || 'Invalid credentials');
+        throw new Error(body.error || 'Las credenciales no son válidas.');
       }
       router.push('/admin/catalog');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Invalid credentials');
+      setError(cause instanceof Error ? cause.message : 'Las credenciales no son válidas.');
     } finally {
       setPending(false);
     }
@@ -33,10 +33,10 @@ export default function AdminLoginForm() {
 
   return (
     <form className="mt-4 grid gap-3" onSubmit={submit}>
-      <label>Business code<input className="mt-1 w-full rounded border p-2" name="businessCode" required /></label>
-      <label>Password<input className="mt-1 w-full rounded border p-2" name="password" type="password" required /></label>
+      <label>Código del comercio<input className="mt-1 w-full rounded border p-2" name="businessCode" aria-label="Código del comercio" required /></label>
+      <label>Contraseña<input className="mt-1 w-full rounded border p-2" name="password" aria-label="Contraseña" type="password" required /></label>
       {error && <p role="alert">{error}</p>}
-      <button className="rounded bg-black p-2 text-white" disabled={pending} type="submit">{pending ? 'Signing in…' : 'Sign in'}</button>
+      <button className="rounded bg-black p-2 text-white" disabled={pending} type="submit">{pending ? 'Ingresando…' : 'Ingresar'}</button>
     </form>
   );
 }

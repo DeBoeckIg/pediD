@@ -3,7 +3,7 @@ import { createSupabaseAdminClient } from '@/lib/supabase/server';
 import { listAdminOrders } from '@/modules/orders/admin-service';
 import { calculateOrderTotal } from '@/modules/orders/totals';
 
-const label = (value: string) => value.replace('_', ' ');
+const label = (value: string) => ({ pending: 'pendiente', confirmed: 'confirmado', completed: 'completado', cancelled: 'cancelado', cash: 'efectivo', bank_transfer: 'transferencia bancaria', pickup: 'retiro', meeting_point: 'punto de encuentro' }[value] ?? value.replace('_', ' '));
 
 export default async function AdminOrdersPage({ searchParams }: { searchParams: Promise<{ reference?: string; from?: string; to?: string }> }) {
   await requireAdmin();
@@ -11,13 +11,13 @@ export default async function AdminOrdersPage({ searchParams }: { searchParams: 
   const orders = await listAdminOrders(createSupabaseAdminClient(), filters);
 
   return <main className="mx-auto max-w-6xl p-4">
-    <nav className="mb-4 flex gap-4"><a href="/admin/catalog">Catalog</a><a href="/admin/orders">Orders</a></nav>
-    <h1 className="text-2xl font-bold">Order administration</h1>
+    <nav className="mb-4 flex gap-4"><a href="/admin/catalog">Catálogo</a><a href="/admin/orders">Pedidos</a></nav>
+    <h1 className="text-2xl font-bold">Administración de pedidos</h1>
     <form className="mt-4 grid gap-2 rounded border p-3 sm:grid-cols-4" method="get">
-      <input name="reference" defaultValue={filters.reference} placeholder="Order reference" aria-label="Order reference" className="rounded border p-2" />
-      <input name="from" defaultValue={filters.from} type="date" aria-label="From date" className="rounded border p-2" />
-      <input name="to" defaultValue={filters.to} type="date" aria-label="To date" className="rounded border p-2" />
-      <button className="rounded bg-black p-2 text-white" type="submit">Filter</button>
+      <input name="reference" defaultValue={filters.reference} placeholder="Referencia del pedido" aria-label="Referencia del pedido" className="rounded border p-2" />
+      <input name="from" defaultValue={filters.from} type="date" aria-label="Fecha desde" />
+      <input name="to" defaultValue={filters.to} type="date" aria-label="Fecha hasta" />
+      <button className="rounded bg-black p-2 text-white" type="submit">Filtrar</button>
     </form>
     <div className="mt-6 grid gap-4">
       {orders.map((order: any) => <article className="rounded border p-4" key={order.id}>

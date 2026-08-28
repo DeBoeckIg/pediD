@@ -10,6 +10,6 @@ export default function WhatsAppConfirmation({ reference }: { reference?: string
     if (raw) try { setHandoff({ ...JSON.parse(raw), reference: reference ?? JSON.parse(raw).reference }); } catch { /* Ignore malformed client storage. */ }
   }, [reference]);
   const url = handoff && getWhatsAppUrl(process.env.NEXT_PUBLIC_WHATSAPP_NUMBER, formatWhatsAppMessage(handoff));
-  if (!url) return <p className="mt-4 text-sm">WhatsApp handoff is unavailable because its number is not configured.</p>;
-  return <p className="mt-4"><a className="rounded bg-green-600 p-2 text-white" href={url} target="_blank" rel="noreferrer">Send order on WhatsApp</a></p>;
+  if (!url) return <p className="mt-4 text-sm">No se puede enviar el pedido por WhatsApp porque el número no está configurado.</p>;
+  return <p className="mt-4"><a className="rounded bg-green-600 p-2 text-white" href={url} target="_blank" rel="noreferrer" aria-label="Enviar pedido por WhatsApp">Enviar pedido por WhatsApp</a></p>;
 }
