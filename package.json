@@ -17,6 +17,8 @@
   "dependencies": {
     "@supabase/ssr": "^0.6.1",
     "@supabase/supabase-js": "^2.49.1",
+    "@upstash/ratelimit": "^2.0.8",
+    "@upstash/redis": "^1.38.4",
     "bcryptjs": "^3.0.2",
     "jose": "^6.0.10",
     "next": "^15.5.0",

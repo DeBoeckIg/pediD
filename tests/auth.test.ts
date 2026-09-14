@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { hashPassword, validatePassword, verifyPassword } from '../src/modules/auth/password';
 
+vi.mock('../src/modules/auth/service', () => ({ provisionAdmin: vi.fn() }));
+
 describe('admin password boundary', () => {
   it('rejects weak passwords', () => expect(validatePassword('password')).toBe(false));
   it('hashes and verifies without storing plaintext', async () => {

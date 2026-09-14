@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAdmin } from '@/modules/auth/guard';
 import { createSupabaseAdminClient } from '@/lib/supabase/server';
 import { listAdminOrders } from '@/modules/orders/admin-service';
+import { apiError } from '@/lib/http/errors';
 
 export async function GET(request: Request) {
   try {
@@ -14,7 +15,6 @@ export async function GET(request: Request) {
     });
     return NextResponse.json(orders);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unable to list orders';
-    return NextResponse.json({ error: message }, { status: message === 'Unauthorized' ? 401 : 400 });
+    return apiError(error, { fallback: 'Unable to list orders', request });
   }
 }

@@ -25,7 +25,11 @@ export async function updateOrderStatus(client: any, orderId: string, status: Or
   if (currentQuery.error) throw currentQuery.error;
   const errors = validateStatusTransition(currentQuery.data.status, status);
   if (errors.length) throw new Error(errors.join(', '));
-  const { data, error } = await client.from('orders').update({ status }).eq('id', orderId).select('id, status').single();
+  const { data, error } = await client.rpc('update_order_status_atomic', {
+    order_id: orderId,
+    expected_status: currentQuery.data.status,
+    next_status: status,
+  });
   if (error) throw error;
-  return data;
+  return { id: data.id, status: data.status };
 }

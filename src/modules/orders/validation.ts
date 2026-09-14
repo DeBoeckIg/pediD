@@ -4,7 +4,7 @@ export type CheckoutInput = {
   customerSurname: string;
   paymentMethod: 'cash' | 'bank_transfer';
   deliveryMethod: 'pickup' | 'meeting_point';
-  items: { productId: string; quantity: number }[];
+  items: { productId: string; variantId?: string; quantity: number }[];
 };
 
 export type OrderStatus = 'pending' | 'confirmed' | 'completed' | 'cancelled';
@@ -27,7 +27,7 @@ export function validateCheckoutInput(input: Partial<CheckoutInput>): string[] {
   if (!['pickup', 'meeting_point'].includes(input.deliveryMethod ?? '')) errors.push('Delivery method is invalid');
   if (!input.items?.length) errors.push('Cart cannot be empty');
   if (input.items && input.items.length > 50) errors.push('Cart cannot contain more than 50 items');
-  if (input.items?.some(item => !item.productId || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 99)) errors.push('Cart quantities are invalid');
-  if (input.items && new Set(input.items.map(item => item.productId)).size !== input.items.length) errors.push('Cart cannot contain duplicate products');
+  if (input.items?.some(item => !item.productId || (item.variantId !== undefined && !item.variantId) || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 99)) errors.push('Cart quantities are invalid');
+  if (input.items && new Set(input.items.map(item => `${item.productId}:${item.variantId ?? ''}`)).size !== input.items.length) errors.push('Cart cannot contain duplicate products');
   return errors;
 }

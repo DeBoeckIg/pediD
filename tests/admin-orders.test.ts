@@ -45,6 +45,20 @@ describe('admin order management', () => {
     expect(validateStatusTransition('completed', 'pending')).not.toEqual([]);
   });
 
+  it('uses the atomic RPC with the status observed for its compare-and-swap', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { id: 'order-1', status: 'confirmed' }, error: null });
+    const client = { from: vi.fn(() => ({ select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: { status: 'pending' }, error: null }) })) })) })), rpc };
+    const { updateOrderStatus } = await import('../src/modules/orders/admin-service');
+    await expect(updateOrderStatus(client, 'order-1', 'confirmed')).resolves.toEqual({ id: 'order-1', status: 'confirmed' });
+    expect(rpc).toHaveBeenCalledWith('update_order_status_atomic', { order_id: 'order-1', expected_status: 'pending', next_status: 'confirmed' });
+  });
+
+  it('surfaces an atomic transition conflict without changing the route contract', async () => {
+    const client = { from: vi.fn(() => ({ select: vi.fn(() => ({ eq: vi.fn(() => ({ single: vi.fn().mockResolvedValue({ data: { status: 'pending' }, error: null }) })) })) })), rpc: vi.fn().mockResolvedValue({ data: null, error: new Error('Order status update conflict') }) };
+    const { updateOrderStatus } = await import('../src/modules/orders/admin-service');
+    await expect(updateOrderStatus(client, 'order-1', 'confirmed')).rejects.toThrow('Order status update conflict');
+  });
+
   it('calculates totals from multiple persisted order items', async () => {
     const { calculateOrderTotal } = await import('../src/modules/orders/totals');
     expect(calculateOrderTotal([

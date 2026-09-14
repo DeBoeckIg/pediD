@@ -10,6 +10,13 @@ import { generateSubmissionKey } from '../src/modules/orders/submission-key';
 const valid = { submissionKey: 'key', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash' as const, deliveryMethod: 'pickup' as const, items: [{ productId: 'p1', quantity: 1 }] };
 describe('checkout validation', () => {
   it('rejects empty carts and unavailable-like invalid quantities', () => { expect(validateCheckoutInput({ ...valid, items: [] })).toContain('Cart cannot be empty'); expect(validateCheckoutInput({ ...valid, items: [{ productId: 'p1', quantity: 0 }] })).toContain('Cart quantities are invalid'); });
+  it('rejects null items, oversized carts, duplicate IDs, and overlong strings', () => {
+    expect(validateCheckoutInput({ ...valid, items: null as never })).toContain('Cart cannot be empty');
+    expect(validateCheckoutInput({ ...valid, items: Array.from({ length: 51 }, (_, index) => ({ productId: `p${index}`, quantity: 1 })) })).toContain('Cart cannot contain more than 50 items');
+    expect(validateCheckoutInput({ ...valid, items: [{ productId: 'p1', quantity: 1 }, { productId: 'p1', quantity: 1 }] })).toContain('Cart cannot contain duplicate products');
+    expect(validateCheckoutInput({ ...valid, customerName: 'x'.repeat(121) })).toContain('Customer name is required and must be 120 characters or fewer');
+    expect(validateCheckoutInput({ ...valid, submissionKey: 'x'.repeat(201) })).toContain('Submission key is required and must be 200 characters or fewer');
+  });
 });
 describe('submission key generation', () => {
   it('uses randomUUID when available', () => expect(generateSubmissionKey({ randomUUID: () => 'native-key' })).toBe('native-key'));
@@ -45,6 +52,8 @@ describe('cart checkout payload', () => {
     { productId: 'zero', quantity: 0 }, { productId: 'nan', quantity: 'nope' }, { product_id: '', quantity: 1 }, { productId: 'ok', quantity: 1 },
   ]))).toEqual([{ productId: 'ok', quantity: 1 }]));
   it('strips client-only catalog fields before the RPC request', () => expect(toCheckoutItems([{ productId: 'p1', quantity: 2, name: 'Tea', priceArs: 1200 }])).toEqual([{ product_id: 'p1', quantity: 2 }]));
+   it('preserves variant IDs in the RPC request', () => expect(toCheckoutItems([{ productId: 'p1', variantId: 'v1', quantity: 2, name: 'Tea', priceArs: 1200 }])).toEqual([{ product_id: 'p1', variant_id: 'v1', quantity: 2 }]));
+   it('keeps presentation and variant price in the checkout summary model', () => { const [item] = normalizeCartEntries(JSON.stringify([{ productId: 'p1', variantId: 'v1', quantity: 2, name: 'Tea', variantLabel: '500 g', priceArs: 1200 }])); expect(item.variantLabel).toBe('500 g'); expect(getCartEntrySubtotal(item)).toBe(2400); });
 });
 describe('checkout RPC boundary', () => {
   beforeEach(() => vi.restoreAllMocks());
@@ -68,6 +77,7 @@ describe('WhatsApp order handoff', () => {
      expect(message).toContain('Total: ARS 3.000');
     expect(getWhatsAppUrl('5493813531217', message)).toContain(`text=${encodeURIComponent(message)}`);
   });
+  it('includes the selected presentation while keeping legacy items valid', () => { expect(formatWhatsAppMessage({ reference: 'PED-3', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash', deliveryMethod: 'pickup', items: [{ name: 'Tea', presentation: '500 g', quantity: 1, priceArs: 1200 }] })).toContain('Tea (500 g) × 1'); expect(formatWhatsAppMessage({ reference: 'PED-4', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash', deliveryMethod: 'pickup', items: [{ name: 'Tea', quantity: 1 }] })).toContain('Tea × 1'); });
   it('does not represent an old cart with missing prices as zero', () => {
     expect(formatWhatsAppMessage({ reference: 'PED-2', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash', deliveryMethod: 'pickup', items: [{ name: 'Producto antiguo', quantity: 1 }] })).toContain('Total: ARS no disponible');
   });

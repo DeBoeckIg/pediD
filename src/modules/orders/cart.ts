@@ -1,11 +1,13 @@
 export type NormalizedCartEntry = {
   productId: string;
+  variantId?: string;
   quantity: number;
   name?: string;
+  variantLabel?: string;
   priceArs?: number;
 };
 
-type CartProduct = { id: string; availability: 'available' | 'unavailable' };
+type CartProduct = { id: string; availability: 'available' | 'unavailable'; variants?: { id: string; availability: 'available' | 'unavailable' }[] };
 
 function positiveInteger(value: unknown): number | null {
   const number = typeof value === 'number' || typeof value === 'string' ? Number(value) : NaN;
@@ -27,8 +29,12 @@ export function normalizeCartEntries(raw: string | null): NormalizedCartEntry[] 
     if (typeof productId !== 'string' || !productId.trim() || quantity === null) return [];
 
     const normalized: NormalizedCartEntry = { productId: productId.trim(), quantity };
+    const variantId = value.variantId ?? value.variant_id;
+    if (typeof variantId === 'string' && variantId.trim()) normalized.variantId = variantId.trim();
     const name = value.name ?? value.productName;
     if (typeof name === 'string' && name.trim()) normalized.name = name;
+    const variantLabel = value.variantLabel ?? value.variant_label;
+    if (typeof variantLabel === 'string' && variantLabel.trim()) normalized.variantLabel = variantLabel.trim();
     const price = value.priceArs ?? value.price_ars;
     if ((typeof price === 'number' || typeof price === 'string') && Number.isFinite(Number(price))) normalized.priceArs = Number(price);
     return [normalized];
@@ -52,6 +58,6 @@ export function getCartTotal(entries: NormalizedCartEntry[]): number | undefined
 }
 
 export function pruneCartEntries(entries: NormalizedCartEntry[], products: CartProduct[]): NormalizedCartEntry[] {
-  const availableProductIds = new Set(products.filter(product => product.availability === 'available').map(product => product.id));
-  return entries.filter(entry => availableProductIds.has(entry.productId));
+  const available = new Map(products.map(product => [product.id, product]));
+  return entries.filter(entry => { const product = available.get(entry.productId); if (!product) return false; if (!entry.variantId) return product.availability === 'available'; return product.variants?.some(variant => variant.id === entry.variantId && variant.availability === 'available') ?? false; });
 }

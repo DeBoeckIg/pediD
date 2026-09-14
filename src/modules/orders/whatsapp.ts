@@ -6,7 +6,7 @@ export type OrderHandoff = {
   customerSurname: string;
   paymentMethod: string;
   deliveryMethod: string;
-  items: { name: string; quantity: number; priceArs?: number }[];
+  items: { name: string; presentation?: string; quantity: number; priceArs?: number }[];
 };
 
 export function persistOrderHandoff(storage: Pick<Storage, 'setItem'>, handoff: OrderHandoff) {
@@ -14,7 +14,7 @@ export function persistOrderHandoff(storage: Pick<Storage, 'setItem'>, handoff: 
 }
 
 export function formatWhatsAppMessage(handoff: OrderHandoff, currencyLabel = 'ARS'): string {
-  const items = handoff.items.map(item => `- ${item.name} × ${item.quantity}`).join('\n');
+  const items = handoff.items.map(item => `- ${item.name}${item.presentation ? ` (${item.presentation})` : ''} × ${item.quantity}`).join('\n');
   const hasAllPrices = handoff.items.every(item => typeof item.priceArs === 'number' && Number.isFinite(item.priceArs));
   const total = hasAllPrices ? handoff.items.reduce((sum, item) => sum + item.priceArs! * item.quantity, 0).toLocaleString('es-AR') : 'no disponible';
   return `Hola, quisiera confirmar el pedido ${handoff.reference}.\nCliente: ${handoff.customerName} ${handoff.customerSurname}\nPago: ${handoff.paymentMethod}\nEntrega: ${handoff.deliveryMethod}\nProductos:\n${items}\nTotal: ${currencyLabel} ${total}`;

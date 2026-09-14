@@ -1,6 +1,6 @@
 begin;
 
-select plan(17);
+select plan(25);
 
 select has_function(
   'public',
@@ -66,11 +66,22 @@ select is((select count(*)::integer from public.orders where submission_key = 'u
 set role anon;
 select throws_ok(
   $$select public.checkout('invalid-quantity-submission', 'Test', 'Customer', 'cash', 'pickup', jsonb_build_array(jsonb_build_object('product_id', (select product_id from checkout_test_data), 'quantity', 0)))$$,
-  'new row for relation "order_items" violates check constraint "order_items_quantity_check"',
+  'cart items are invalid',
   'invalid stock quantity is rejected'
 );
 reset role;
 select is((select count(*)::integer from public.orders where submission_key = 'invalid-quantity-submission'), 0, 'invalid stock quantity does not create an order');
+
+set role anon;
+select throws_ok($$select public.checkout(null, 'Test', 'Customer', 'cash', 'pickup', '[]'::jsonb)$$, 'submission key is invalid', 'null submission key is rejected');
+select throws_ok($$select public.checkout('null-items', 'Test', 'Customer', 'cash', 'pickup', null)$$, 'items must be an array', 'null items are rejected');
+select throws_ok($$select public.checkout('too-many', 'Test', 'Customer', 'cash', 'pickup', (select jsonb_agg(jsonb_build_object('product_id', gen_random_uuid(), 'quantity', 1)) from generate_series(1, 51)))$$, 'cart cannot contain more than 50 items', 'item count is bounded');
+select throws_ok($$select public.checkout('bad-id', 'Test', 'Customer', 'cash', 'pickup', '[{"product_id":"not-a-uuid","quantity":1}]'::jsonb)$$, 'cart items are invalid', 'invalid product ids are rejected');
+select throws_ok($$select public.checkout('bad-structure', 'Test', 'Customer', 'cash', 'pickup', '[1]'::jsonb)$$, 'cart items are invalid', 'invalid item structure is rejected');
+select throws_ok($$select public.checkout('bad-duplicate', 'Test', 'Customer', 'cash', 'pickup', jsonb_build_array(jsonb_build_object('product_id', (select product_id from checkout_test_data), 'quantity', 1), jsonb_build_object('product_id', (select product_id from checkout_test_data), 'quantity', 1)))$$, 'cart contains duplicate products', 'duplicate product ids are rejected');
+select throws_ok($$select public.checkout('bad-decimal', 'Test', 'Customer', 'cash', 'pickup', jsonb_build_array(jsonb_build_object('product_id', (select product_id from checkout_test_data), 'quantity', 1.5)))$$, 'cart items are invalid', 'fractional quantities are rejected');
+select throws_ok($$select public.checkout('bad-max', 'Test', 'Customer', 'cash', 'pickup', jsonb_build_array(jsonb_build_object('product_id', (select product_id from checkout_test_data), 'quantity', 100)))$$, 'cart items are invalid', 'quantities above 99 are rejected');
+reset role;
 
 select * from finish();
 rollback;

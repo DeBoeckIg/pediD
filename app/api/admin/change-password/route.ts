@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { requireAdminSession } from '@/modules/auth/session';
 import { changePassword } from '@/modules/auth/service';
+import { protectAdminMutation } from '@/lib/http/csrf';
+import { apiError } from '@/lib/http/errors';
 
 export async function POST(request: Request) {
+  const forbidden = protectAdminMutation(request); if (forbidden) return forbidden;
   try {
     await requireAdminSession();
     const body = await request.json() as { businessCode?: string; currentPassword?: string; newPassword?: string };
@@ -10,6 +13,6 @@ export async function POST(request: Request) {
     await changePassword(body.businessCode, body.currentPassword, body.newPassword);
     return NextResponse.json({ ok: true });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Unauthorized' }, { status: 401 });
+    return apiError(error, { fallback: 'Unable to change password', request });
   }
 }
