@@ -16,6 +16,7 @@ const deleteVariant = vi.fn(async () => undefined);
 const addProductImage = vi.fn(async (_client, _storage, productId, file, primary, sortOrder) => ({ product_id: productId, object_path: `products/${productId}/${file.name}`, is_primary: primary, sort_order: sortOrder }));
 const removeProductImage = vi.fn(async () => undefined);
 const setPrimaryImage = vi.fn(async () => undefined);
+const reorderProductImages = vi.fn(async (_client, productId, imageIds) => ({ productId, imageIds }));
 const updateOrderStatus = vi.fn(async () => ({ id: 'order-1', status: 'confirmed' }));
 const signIn = vi.fn(async (businessCode: string, password: string) => { if (businessCode !== 'STORE' || password !== 'SecureAdmin123') throw new Error('Invalid credentials'); });
 const issueAdminSession = vi.fn(async () => 'session-token');
@@ -24,7 +25,7 @@ const securityHeaders = { origin: 'http://localhost', cookie: 'pedid_csrf_token=
 vi.mock('@/modules/auth/guard', () => ({ requireAdmin }));
 vi.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: createServerClient, createSupabaseAdminClient: createAdminClient }));
 vi.mock('@/modules/catalog/service', () => ({ saveCategory, saveProduct, deleteProduct, deleteCategory, saveVariant, deleteVariant }));
-vi.mock('@/modules/media/service', () => ({ replacePrimaryImage, validateImage, addProductImage, removeProductImage, setPrimaryImage }));
+vi.mock('@/modules/media/service', () => ({ replacePrimaryImage, validateImage, addProductImage, removeProductImage, setPrimaryImage, reorderProductImages }));
 vi.mock('@/modules/orders/admin-service', () => ({ updateOrderStatus }));
 vi.mock('@/modules/auth/service', () => ({ signIn }));
 vi.mock('@/modules/auth/session', () => ({ issueAdminSession }));
@@ -65,6 +66,16 @@ describe('admin route boundaries', () => {
     expect(removeProductImage).toHaveBeenCalledWith(state.adminClient, expect.anything(), 'image-2');
   });
 
+  it('handles reorder before requiring a file for multipart and JSON clients', async () => {
+    const { POST } = await import('../app/api/admin/media/route');
+    const multipart = new FormData();
+    multipart.set('productId', 'product-1'); multipart.set('action', 'reorder'); multipart.set('imageIds', JSON.stringify(['image-1', 'image-2']));
+    expect((await POST(new Request('http://localhost/api/admin/media', { method: 'POST', body: multipart, headers: securityHeaders }))).status).toBe(200);
+    const json = new Request('http://localhost/api/admin/media', { method: 'POST', body: JSON.stringify({ productId: 'product-1', action: 'reorder', imageIds: ['image-2', 'image-1'] }), headers: { ...securityHeaders, 'content-type': 'application/json' } });
+    expect((await POST(json)).status).toBe(200);
+    expect(reorderProductImages).toHaveBeenNthCalledWith(2, expect.anything(), 'product-1', ['image-2', 'image-1']);
+  });
+
   it('rejects unauthorized and internal failures on new endpoints without leaking details', async () => {
     const variants = await import('../app/api/admin/variants/route');
     const request = () => new Request('http://localhost', { method: 'POST', body: JSON.stringify({ productId: 'p', label: 'Unit', unitType: 'unit', quantity: 1, priceArs: 1, stockQuantity: 1, sortOrder: 0, published: false }), headers: { ...securityHeaders, 'content-type': 'application/json' } });
@@ -80,9 +91,9 @@ describe('admin route boundaries', () => {
     const categories = await import('../app/api/admin/categories/route');
     const products = await import('../app/api/admin/products/route');
     expect((await categories.POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ name: 'Drinks' }), headers: { ...securityHeaders, 'content-type': 'application/json' } }))).status).toBe(201);
-    expect((await products.POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ name: 'Tea', categoryId: 'category-1', priceArs: 100, stockQuantity: 2, published: true }), headers: { ...securityHeaders, 'content-type': 'application/json' } }))).status).toBe(201);
+    expect((await products.POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ name: 'Tea', categoryId: 'category-1', variants: [{ label: 'Unit', priceArs: 100, stockQuantity: 2 }] }), headers: { ...securityHeaders, 'content-type': 'application/json' } }))).status).toBe(201);
     expect((await products.DELETE(new Request('http://localhost/api/admin/products?id=product-1', { headers: securityHeaders }))).status).toBe(204);
-    expect(saveCategory).toHaveBeenCalledWith(state.adminClient, undefined, 'Drinks'); expect(saveProduct).toHaveBeenCalledWith(state.adminClient, undefined, expect.any(Object)); expect(deleteProduct).toHaveBeenCalledWith(state.adminClient, 'product-1');
+    expect(saveCategory).toHaveBeenCalledWith(state.adminClient, undefined, 'Drinks'); expect(saveProduct).toHaveBeenCalledWith(state.adminClient, undefined, expect.any(Object), [{ label: 'Unit', priceArs: 100, stockQuantity: 2 }]); expect(deleteProduct).toHaveBeenCalledWith(state.adminClient, 'product-1');
   });
 
   it('uses the admin client and rejects unauthorized category updates', async () => {
@@ -99,7 +110,7 @@ describe('admin route boundaries', () => {
     const { POST } = await import('../app/api/admin/products/route');
     const body = { id: 'product-1', name: 'Tea', description: 'Green', categoryId: 'category-1', priceArs: 100, stockQuantity: 2, published: true };
     expect((await POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify(body), headers: { ...securityHeaders, 'content-type': 'application/json' } }))).status).toBe(200);
-    expect(saveProduct).toHaveBeenCalledWith(state.adminClient, 'product-1', expect.objectContaining({ name: body.name, description: body.description, categoryId: body.categoryId, priceArs: body.priceArs, stockQuantity: body.stockQuantity, published: body.published }));
+    expect(saveProduct).toHaveBeenCalledWith(state.adminClient, 'product-1', expect.objectContaining({ name: body.name, description: body.description, categoryId: body.categoryId, priceArs: body.priceArs, stockQuantity: body.stockQuantity, published: body.published }), undefined);
     expect(createAdminClient).toHaveBeenCalled();
     expect(createServerClient).not.toHaveBeenCalled();
   });
@@ -107,7 +118,7 @@ describe('admin route boundaries', () => {
   it('never exposes persistence details from admin catalog routes', async () => {
     saveProduct.mockRejectedValueOnce(new Error('PostgreSQL password or storage bucket detail'));
     const { POST } = await import('../app/api/admin/products/route');
-    const response = await POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ name: 'Tea', categoryId: 'category-1', priceArs: 100, stockQuantity: 2, published: true }), headers: { ...securityHeaders, 'content-type': 'application/json' } }));
+    const response = await POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ name: 'Tea', categoryId: 'category-1', variants: [{ label: 'Unit', priceArs: 100, stockQuantity: 2 }] }), headers: { ...securityHeaders, 'content-type': 'application/json' } }));
     expect(response.status).toBe(500);
     const body = await response.json();
     expect(body.error).toBe('Invalid product');
@@ -154,6 +165,41 @@ describe('admin route boundaries', () => {
     const { POST } = await import('../app/api/admin/logout/route');
     expect((await POST(new Request('http://localhost/api/admin/logout', { method: 'POST', headers: securityHeaders }))).status).toBe(200);
     expect((await POST(new Request('http://localhost/api/admin/logout', { method: 'POST', headers: { ...securityHeaders, origin: 'https://evil.example' } }))).status).toBe(403);
+  });
+
+  it('lists an empty carousel through the admin client', async () => {
+    const from = vi.fn(() => ({
+      select: vi.fn(() => ({
+        order: vi.fn(() => ({ order: vi.fn(async () => ({ data: [], error: null })) })),
+      })),
+    }));
+    state.adminClient.from = from;
+    const { GET } = await import('../app/api/admin/carousel/route');
+    const response = await GET(new Request('http://localhost/api/admin/carousel'));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual([]);
+  });
+
+  it('uploads a carousel image with the migration schema', async () => {
+    const insert = vi.fn(() => ({ select: vi.fn(() => ({ single: vi.fn(async () => ({ data: { id: 'slide-1' }, error: null })) })) }));
+    const from = vi.fn(() => ({
+      select: vi.fn((_fields?: string, options?: { count?: string; head?: boolean }) => options?.head
+        ? Promise.resolve({ count: 0, error: null })
+        : { order: vi.fn(() => ({ order: vi.fn(async () => ({ data: [], error: null })) })) }),
+      insert,
+    }));
+    state.adminClient.from = from;
+    state.adminClient.storage = { from: vi.fn(() => ({
+      upload: vi.fn(async () => ({ error: null })),
+      createSignedUrl: vi.fn(async () => ({ data: { signedUrl: 'http://signed' }, error: null })),
+    })) };
+    const { POST } = await import('../app/api/admin/carousel/route');
+    const form = new FormData();
+    form.set('action', 'add');
+    form.set('file', new File(['image'], 'slide.png', { type: 'image/png' }));
+    const response = await POST(new Request('http://localhost/api/admin/carousel', { method: 'POST', body: form, headers: securityHeaders }));
+    expect(response.status).toBe(201);
+    expect(insert).toHaveBeenCalledWith(expect.objectContaining({ image_path: expect.stringMatching(/^carousel\//), sort_order: 0, active: true }));
   });
 
   it('keeps the login endpoint contract and only issues a session for valid credentials', async () => {

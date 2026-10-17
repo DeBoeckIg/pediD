@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { validateCheckoutInput } from '../src/modules/orders/validation';
+import { normalizeArgentineMobile, validateCheckoutInput } from '../src/modules/orders/validation';
 import { checkout } from '../src/modules/orders/service';
 import { formatWhatsAppMessage, getWhatsAppUrl, persistOrderHandoff, ORDER_HANDOFF_STORAGE_KEY } from '../src/modules/orders/whatsapp';
 import { toCheckoutItems } from '../app/catalog/catalog-client';
@@ -7,7 +7,20 @@ import { formatArsAmount, getCartEntrySubtotal, getCartTotal, normalizeCartEntri
 import { normalizeCheckoutPayload } from '../src/modules/orders/http';
 import { generateSubmissionKey } from '../src/modules/orders/submission-key';
 
-const valid = { submissionKey: 'key', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash' as const, deliveryMethod: 'pickup' as const, items: [{ productId: 'p1', quantity: 1 }] };
+const valid = { submissionKey: 'key', customerName: 'Ada', customerSurname: 'Lovelace', customerPhone: '+54 9 11 1234-5678', paymentMethod: 'cash' as const, deliveryMethod: 'pickup' as const, items: [{ productId: 'p1', quantity: 1 }] };
+describe('Argentine mobile validation', () => {
+  it('normalizes common formats to WhatsApp E.164', () => {
+    expect(normalizeArgentineMobile('+54 9 11 1234-5678')).toBe('+5491112345678');
+    expect(normalizeArgentineMobile('011 1234-5678')).toBe('+5491112345678');
+    expect(normalizeArgentineMobile('11 15 1234-5678')).toBe('+5491112345678');
+  });
+  it('rejects missing, fixed-line, malformed and obvious repeated numbers', () => {
+    expect(validateCheckoutInput({ ...valid, customerPhone: '' })).toContain('Customer phone must be a valid Argentine mobile number');
+    expect(normalizeArgentineMobile('+54 11 1234-5678')).toBeNull();
+    expect(normalizeArgentineMobile('11 1111-1111')).toBeNull();
+    expect(normalizeArgentineMobile('11 ABCD-5678')).toBeNull();
+  });
+});
 describe('checkout validation', () => {
   it('rejects empty carts and unavailable-like invalid quantities', () => { expect(validateCheckoutInput({ ...valid, items: [] })).toContain('Cart cannot be empty'); expect(validateCheckoutInput({ ...valid, items: [{ productId: 'p1', quantity: 0 }] })).toContain('Cart quantities are invalid'); });
   it('rejects null items, oversized carts, duplicate IDs, and overlong strings', () => {
@@ -57,13 +70,17 @@ describe('cart checkout payload', () => {
 });
 describe('checkout RPC boundary', () => {
   beforeEach(() => vi.restoreAllMocks());
-  it('calls the public RPC with product_id payload and returns its reference', async () => { const rpc = vi.fn(async () => ({ data: { order_reference: 'ref' }, error: null })); expect(await checkout({ rpc }, valid)).toEqual({ order_reference: 'ref' }); expect(rpc).toHaveBeenCalledWith('checkout', expect.objectContaining({ items: [{ product_id: 'p1', quantity: 1 }] })); });
+   it('calls the public RPC with the canonical phone and product_id payload', async () => { const rpc = vi.fn(async () => ({ data: { order_reference: 'ref' }, error: null })); expect(await checkout({ rpc }, valid)).toEqual({ order_reference: 'ref' }); expect(rpc).toHaveBeenCalledWith('checkout', expect.objectContaining({ customer_phone: '+5491112345678', items: [{ product_id: 'p1', quantity: 1 }] })); });
+   it('passes a real variant ID to the atomic variant stock path', async () => { const rpc = vi.fn(async () => ({ data: { order_reference: 'ref' }, error: null })); await checkout({ rpc }, { ...valid, items: [{ productId: 'p1', variantId: 'v1', quantity: 1 }] }); expect(rpc).toHaveBeenCalledWith('checkout', expect.objectContaining({ items: [{ product_id: 'p1', variant_id: 'v1', quantity: 1 }] })); });
   it('preserves duplicate submission responses for idempotent RPC handling', async () => { const rpc = vi.fn().mockResolvedValue({ data: { order_reference: 'same' }, error: null }); const client = { rpc }; await checkout(client, valid); await checkout(client, valid); expect(rpc).toHaveBeenCalledTimes(2); expect((await checkout(client, valid)).order_reference).toBe('same'); });
-  it('surfaces unavailable product errors from the RPC', async () => { await expect(checkout({ rpc: async () => ({ data: null, error: new Error('Product unavailable') }) }, valid)).rejects.toThrow('Product unavailable'); });
+   it('surfaces unavailable product errors from the RPC', async () => { await expect(checkout({ rpc: async () => ({ data: null, error: new Error('Product unavailable') }) }, valid)).rejects.toThrow('Product unavailable'); });
+   it('preserves the bounded database code for safe HTTP mapping', async () => {
+     await expect(checkout({ rpc: async () => ({ data: null, error: { code: '23514', message: 'orders_customer_phone_format' } }) }, valid)).rejects.toMatchObject({ code: '23514' });
+   });
 });
 describe('checkout HTTP boundary', () => {
   it('normalizes the browser/RPC item shape for the domain service', () => {
-    expect(normalizeCheckoutPayload({ ...valid, items: [{ product_id: 'p1', quantity: 2 }] })).toEqual({ ...valid, items: [{ product_id: 'p1', productId: 'p1', quantity: 2 }] });
+    expect(normalizeCheckoutPayload({ ...valid, items: [{ product_id: 'p1', variant_id: 'v1', quantity: 2 }] })).toEqual({ ...valid, items: [{ product_id: 'p1', productId: 'p1', variant_id: 'v1', variantId: 'v1', quantity: 2 }] });
   });
   it('does not turn malformed snake_case items into valid service input', () => {
     const normalized = normalizeCheckoutPayload({ ...valid, items: [{ product_id: '', quantity: 0 }] });
@@ -77,7 +94,8 @@ describe('WhatsApp order handoff', () => {
      expect(message).toContain('Total: ARS 3.000');
     expect(getWhatsAppUrl('5493813531217', message)).toContain(`text=${encodeURIComponent(message)}`);
   });
-  it('includes the selected presentation while keeping legacy items valid', () => { expect(formatWhatsAppMessage({ reference: 'PED-3', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash', deliveryMethod: 'pickup', items: [{ name: 'Tea', presentation: '500 g', quantity: 1, priceArs: 1200 }] })).toContain('Tea (500 g) × 1'); expect(formatWhatsAppMessage({ reference: 'PED-4', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash', deliveryMethod: 'pickup', items: [{ name: 'Tea', quantity: 1 }] })).toContain('Tea × 1'); });
+   it('includes presentation, quantity, unit price and subtotal while keeping legacy items valid', () => { const message = formatWhatsAppMessage({ reference: 'PED-3', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash', deliveryMethod: 'pickup', items: [{ name: 'Tea', presentation: '500 g', quantity: 1, priceArs: 1200 }] }); expect(message).toContain('Tea (500 g) × 1'); expect(message).toContain('Precio unitario: ARS 1.200'); expect(message).toContain('Subtotal: ARS 1.200'); expect(formatWhatsAppMessage({ reference: 'PED-4', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash', deliveryMethod: 'pickup', items: [{ name: 'Tea', quantity: 1 }] })).toContain('Tea × 1'); });
+   it('formats multiple variants independently and totals them', () => { const message = formatWhatsAppMessage({ reference: 'PED-5', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash', deliveryMethod: 'pickup', items: [{ name: 'Tea', presentation: '500 g', quantity: 2, priceArs: 1200 }, { name: 'Coffee', presentation: '1 kg', quantity: 1, priceArs: 2500 }] }); expect(message).toContain('Tea (500 g) × 2'); expect(message).toContain('Coffee (1 kg) × 1'); expect(message).toContain('Total: ARS 4.900'); });
   it('does not represent an old cart with missing prices as zero', () => {
     expect(formatWhatsAppMessage({ reference: 'PED-2', customerName: 'Ada', customerSurname: 'Lovelace', paymentMethod: 'cash', deliveryMethod: 'pickup', items: [{ name: 'Producto antiguo', quantity: 1 }] })).toContain('Total: ARS no disponible');
   });

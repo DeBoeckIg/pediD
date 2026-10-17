@@ -41,6 +41,7 @@ This slice bootstraps the Next.js/TypeScript application, Supabase schema, priva
 | `NEXT_PUBLIC_LOGO_PATH` | Optional public logo path or URL | Empty |
 | `UPSTASH_REDIS_REST_URL` | Server-only distributed rate limiting | Upstash REST URL |
 | `UPSTASH_REDIS_REST_TOKEN` | Server-only distributed rate limiting | Upstash REST token |
+| `CSRF_ALLOWED_ORIGINS` | Comma-separated exact HTTP(S) origins allowed for CSRF | Empty; development also allows `http://localhost:5173` and `http://127.0.0.1:5173` |
 
 Never expose `SUPABASE_SERVICE_ROLE_KEY`, `ADMIN_SESSION_SECRET`, or `PROVISIONING_SECRET` to browser code or source control.
 
@@ -68,3 +69,5 @@ The public projection deliberately exposes `availability`, not stock quantity. O
 ### CSRF and session boundaries
 
 Cookie-authenticated admin mutations require same-origin `Origin` (or `Referer`) and the double-submit CSRF token. Login and provisioning do not use the token because login establishes the session and provisioning is secret-gated without an admin session. Public checkout also does not use it because it has no customer session/context. Logout is protected like other admin mutations and must send the token.
+
+`CSRF_ALLOWED_ORIGINS` accepts only comma-separated HTTP(S) origins. In production there are no localhost defaults; configure every additional frontend origin explicitly.

@@ -1,0 +1,7 @@
+begin;
+create table public.site_carousel_slides (id uuid primary key default gen_random_uuid(), image_path text not null, sort_order integer not null default 0 check (sort_order >= 0), active boolean not null default true, created_at timestamptz not null default now(), updated_at timestamptz not null default now());
+alter table public.site_carousel_slides enable row level security;
+create policy site_carousel_public_read on public.site_carousel_slides for select to anon, authenticated using (active);
+create or replace function public.reorder_site_carousel(p_ids uuid[]) returns setof public.site_carousel_slides language plpgsql security definer set search_path = public as $$ declare total integer; begin select count(*) into total from site_carousel_slides; if coalesce(array_length(p_ids, 1), 0) <> total or (select count(distinct x) from unnest(p_ids) x) <> total or exists (select 1 from site_carousel_slides s where not (s.id = any(p_ids))) then raise exception 'Invalid carousel ids'; end if; update site_carousel_slides s set sort_order = x.position - 1, updated_at = now() from unnest(p_ids) with ordinality x(id, position) where s.id = x.id; return query select * from site_carousel_slides order by sort_order, created_at, id; end $$;
+revoke all on function public.reorder_site_carousel(uuid[]) from public; grant execute on function public.reorder_site_carousel(uuid[]) to service_role;
+commit;

@@ -3,20 +3,20 @@
 project_id = "pedid"
 
 [api]
-port = 55431
+port = 56031
 
 [db]
 major_version = 15
-port = 55432
+port = 56032
 
 [studio]
-port = 55433
+port = 56033
 
 [local_smtp]
-port = 55434
+port = 56034
 
 [auth]
-port = 55435
+port = 56035
 
 [db.migrations]
 

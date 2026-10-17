@@ -3,6 +3,7 @@ export function normalizeCheckoutPayload(body: unknown) {
   const payload = body as Record<string, unknown>;
   return {
     ...payload,
+    customerPhone: payload.customerPhone ?? payload.customer_phone,
     items: Array.isArray(payload.items)
       ? payload.items.map(item => {
         if (!item || typeof item !== 'object' || Array.isArray(item)) return item;
@@ -10,6 +11,7 @@ export function normalizeCheckoutPayload(body: unknown) {
         return {
           ...checkoutItem,
           productId: checkoutItem.productId ?? checkoutItem.product_id,
+          variantId: checkoutItem.variantId ?? checkoutItem.variant_id,
         };
       })
       : payload.items,
