@@ -28,7 +28,7 @@ drop function if exists public.checkout(text, text, text, text, text, text, json
 create function public.checkout(submission_key text, customer_name text, customer_surname text, customer_phone text, payment_method text, delivery_method text, items jsonb)
 returns jsonb language plpgsql security definer set search_path=public, extensions as $$
 declare existing_ref text; item jsonb; product_row products%rowtype; variant_row product_variants%rowtype;
-  order_id uuid; reference text := encode(gen_random_bytes(24), 'hex'); item_count integer;
+  v_order_id uuid; reference text := encode(gen_random_bytes(24), 'hex'); item_count integer;
   checkout_product_id uuid; variant_id uuid; checkout_quantity integer;
 begin
   if submission_key is null or length(trim(submission_key)) not between 1 and 200 then raise exception 'submission key is invalid'; end if;
@@ -51,23 +51,23 @@ begin
   end loop;
   insert into orders(order_reference,submission_key,customer_name,customer_surname,customer_phone,payment_method,delivery_method)
     values(reference,trim(submission_key),trim(customer_name),trim(customer_surname),customer_phone,payment_method,delivery_method)
-    on conflict on constraint orders_submission_key_key do nothing returning id into order_id;
-  if order_id is null then select order_reference into existing_ref from orders where orders.submission_key=trim(checkout.submission_key); return jsonb_build_object('order_reference',existing_ref,'duplicate',true); end if;
+    on conflict on constraint orders_submission_key_key do nothing returning id into v_order_id;
+  if v_order_id is null then select order_reference into existing_ref from orders where orders.submission_key=trim(submission_key); return jsonb_build_object('order_reference',existing_ref,'duplicate',true); end if;
   for item in select value from jsonb_array_elements(items) loop
     checkout_product_id := (item->>'product_id')::uuid; checkout_quantity := (item->>'quantity')::integer;
     if item ? 'variant_id' then
       variant_id := (item->>'variant_id')::uuid;
       update product_variants set stock_quantity=stock_quantity-checkout_quantity where id=variant_id and product_id=checkout_product_id and published and deleted_at is null and stock_quantity >= checkout_quantity returning * into variant_row;
       if not found then raise exception 'product unavailable'; end if;
-      insert into order_items(order_id,product_id,variant_id,variant_label,variant_unit_type,variant_quantity,product_name,unit_price_ars,quantity) values(order_id,checkout_product_id,variant_row.id,variant_row.label,variant_row.unit_type,variant_row.quantity,(select name from products where id=checkout_product_id),variant_row.price_ars,checkout_quantity);
+       insert into order_items(order_id,product_id,variant_id,variant_label,variant_unit_type,variant_quantity,product_name,unit_price_ars,quantity) values(v_order_id,checkout_product_id,variant_row.id,variant_row.label,variant_row.unit_type,variant_row.quantity,(select name from products where id=checkout_product_id),variant_row.price_ars,checkout_quantity);
     else
       update products set stock_quantity=stock_quantity-checkout_quantity where id=checkout_product_id and published and deleted_at is null and stock_quantity >= checkout_quantity returning * into product_row;
       if not found or product_row.price_ars is null then raise exception 'product unavailable'; end if;
-      insert into order_items(order_id,product_id,product_name,unit_price_ars,quantity) values(order_id,product_row.id,product_row.name,product_row.price_ars,checkout_quantity);
+       insert into order_items(order_id,product_id,product_name,unit_price_ars,quantity) values(v_order_id,product_row.id,product_row.name,product_row.price_ars,checkout_quantity);
     end if;
   end loop;
   insert into admin_push_outbox(order_id, order_reference, total_ars)
-    select order_id, reference, coalesce(sum(oi.unit_price_ars * oi.quantity), 0) from order_items oi where oi.order_id = checkout.order_id;
+    select v_order_id, reference, coalesce(sum(oi.unit_price_ars * oi.quantity), 0) from order_items oi where oi.order_id = v_order_id;
   return jsonb_build_object('order_reference',reference,'duplicate',false);
 end $$;
 revoke all on function public.checkout(text,text,text,text,text,text,jsonb) from public, anon, authenticated;
