@@ -1,14 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const state = { authorized: true };
+const state = { authorized: true, adminClient: {} as any };
 const requireAdmin = vi.fn(async () => { if (!state.authorized) throw new Error('Unauthorized'); });
 const createServerClient = vi.fn(async () => ({}));
-const createAdminClient = vi.fn(() => ({}));
+const createAdminClient = vi.fn(() => state.adminClient);
 vi.mock('@/modules/auth/guard', () => ({ requireAdmin }));
 vi.mock('@/lib/supabase/server', () => ({ createSupabaseServerClient: createServerClient, createSupabaseAdminClient: createAdminClient }));
 
 describe('admin order management', () => {
-  beforeEach(() => { state.authorized = true; vi.clearAllMocks(); });
+  beforeEach(() => { state.authorized = true; state.adminClient = {}; vi.clearAllMocks(); });
 
   it('queries orders with nested items newest first and applies filters', async () => {
     const order = vi.fn().mockReturnThis();
@@ -51,6 +51,32 @@ describe('admin order management', () => {
     const { updateOrderStatus } = await import('../src/modules/orders/admin-service');
     await expect(updateOrderStatus(client, 'order-1', 'confirmed')).resolves.toEqual({ id: 'order-1', status: 'confirmed' });
     expect(rpc).toHaveBeenCalledWith('update_order_status_atomic', { order_id: 'order-1', expected_status: 'pending', next_status: 'confirmed' });
+  });
+
+  it('deletes orders through the atomic admin RPC', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
+    const { deleteOrder } = await import('../src/modules/orders/admin-service');
+    await deleteOrder({ rpc }, '11111111-1111-4111-8111-111111111111');
+    expect(rpc).toHaveBeenCalledWith('delete_order_atomic', { order_id: '11111111-1111-4111-8111-111111111111' });
+  });
+
+  it('protects order deletion and returns no content for a valid admin request', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
+    state.adminClient = { rpc };
+    const { DELETE } = await import('../app/api/admin/orders/route');
+    const headers = { origin: 'http://localhost', cookie: 'pedid_csrf_token=test-token', 'x-csrf-token': 'test-token' };
+    const request = () => new Request('http://localhost/api/admin/orders?id=11111111-1111-4111-8111-111111111111', { method: 'DELETE', headers });
+    expect((await DELETE(request())).status).toBe(204);
+    expect(rpc).toHaveBeenCalledWith('delete_order_atomic', { order_id: '11111111-1111-4111-8111-111111111111' });
+    state.authorized = false;
+    expect((await DELETE(request())).status).toBe(401);
+  });
+
+  it('rejects missing or malformed order ids before deletion', async () => {
+    const { DELETE } = await import('../app/api/admin/orders/route');
+    const headers = { origin: 'http://localhost', cookie: 'pedid_csrf_token=test-token', 'x-csrf-token': 'test-token' };
+    expect((await DELETE(new Request('http://localhost/api/admin/orders', { method: 'DELETE', headers }))).status).toBe(400);
+    expect((await DELETE(new Request('http://localhost/api/admin/orders?id=not-an-id', { method: 'DELETE', headers }))).status).toBe(400);
   });
 
   it('surfaces an atomic transition conflict without changing the route contract', async () => {

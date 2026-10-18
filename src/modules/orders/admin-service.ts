@@ -33,3 +33,8 @@ export async function updateOrderStatus(client: any, orderId: string, status: Or
   if (error) throw error;
   return { id: data.id, status: data.status };
 }
+
+export async function deleteOrder(client: any, orderId: string) {
+  const { error } = await client.rpc('delete_order_atomic', { order_id: orderId });
+  if (error) throw error;
+}
