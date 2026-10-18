@@ -18,8 +18,13 @@ export async function POST(request: Request) {
   const { data: jobs } = await db.from('admin_push_outbox').select('*').in('status', ['pending', 'failed']).lte('next_attempt_at', now).lt('attempts', 5).limit(MAX_BATCH);
   const { data: subscriptions } = await db.from('admin_push_subscriptions').select('*'); let processed = 0;
   for (const job of jobs ?? []) {
+    const { data: order } = job.order_id
+      ? await db.from('orders').select('customer_name, customer_surname').eq('id', job.order_id).single()
+      : { data: null };
+    const buyerName = [order?.customer_name, order?.customer_surname].filter(Boolean).join(' ');
+    const formattedAmount = Number(job.total_ars || 0).toLocaleString('es-AR');
     const attempt = Number(job.attempts || 0) + 1; let delivered = 0; let lastError = 'No active push subscriptions';
-    for (const sub of subscriptions ?? []) { try { await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, JSON.stringify({ title: 'Nuevo pedido', body: `${job.order_reference} · $${job.total_ars}`, url: '/admin/orders' })); delivered++; } catch (error: any) { lastError = 'Push delivery failed'; if (error?.statusCode === 404 || error?.statusCode === 410) await db.from('admin_push_subscriptions').delete().eq('endpoint', sub.endpoint); } }
+    for (const sub of subscriptions ?? []) { try { await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, JSON.stringify({ title: 'Nuevo pedido de Punto Sano!', body: `${buyerName} · $${formattedAmount}`, url: '/admin/orders' })); delivered++; } catch (error: any) { lastError = 'Push delivery failed'; if (error?.statusCode === 404 || error?.statusCode === 410) await db.from('admin_push_subscriptions').delete().eq('endpoint', sub.endpoint); } }
     const patch = pushJobPatch(job, delivered, Date.now()); if (delivered === 0) patch.last_error = lastError;
     await db.from('admin_push_outbox').update(patch).eq('id', job.id); processed++;
   }
