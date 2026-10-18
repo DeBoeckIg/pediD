@@ -18,6 +18,7 @@ describe('admin order management', () => {
     await listAdminOrders(query, { reference: 'PED', from: '2026-08-01', to: '2026-08-20' });
     expect(query.from).toHaveBeenCalledWith('orders');
     expect(query.from.mock.results[0].value.select).toHaveBeenCalledWith(expect.stringContaining('order_items('));
+    expect(query.from.mock.results[0].value.select).toHaveBeenCalledWith(expect.stringContaining('variant_label'));
     expect(order).toHaveBeenCalledWith('created_at', { ascending: false });
   });
 
