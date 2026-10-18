@@ -84,7 +84,7 @@ describe('admin route boundaries', () => {
     state.authorized = true; saveVariant.mockRejectedValueOnce(new Error('Supabase secret/internal SQL detail'));
     const response = await variants.POST(request());
     expect(response.status).toBe(500); const body = await response.json();
-    expect(body.error).toBe('Invalid presentation'); expect(JSON.stringify(body)).not.toContain('Supabase');
+    expect(body).toMatchObject({ code: 'INTERNAL_ERROR', message: 'No se pudo completar la solicitud' }); expect(JSON.stringify(body)).not.toContain('Supabase');
   });
 
   it('routes category and product CRUD to guarded persistence', async () => {
@@ -121,7 +121,7 @@ describe('admin route boundaries', () => {
     const response = await POST(new Request('http://localhost', { method: 'POST', body: JSON.stringify({ name: 'Tea', categoryId: 'category-1', variants: [{ label: 'Unit', priceArs: 100, stockQuantity: 2 }] }), headers: { ...securityHeaders, 'content-type': 'application/json' } }));
     expect(response.status).toBe(500);
     const body = await response.json();
-    expect(body.error).toBe('Invalid product');
+    expect(body).toMatchObject({ code: 'CATALOG_PRODUCT_INVALID', message: 'Los datos del producto no son válidos' });
     expect(JSON.stringify(body)).not.toContain('PostgreSQL');
   });
 
@@ -209,7 +209,7 @@ describe('admin route boundaries', () => {
     expect(issueAdminSession).toHaveBeenCalled();
     const denied = await POST(request({ businessCode: 'STORE', password: 'wrong' }));
     expect(denied.status).toBe(401);
-    expect((await denied.json()).error).toBe('Invalid credentials');
+    expect(await denied.json()).toMatchObject({ code: 'AUTH_INVALID_CREDENTIALS', message: 'Las credenciales no son válidas' });
   });
 
   it('renders a browser login form that posts credentials and redirects to catalog', async () => {

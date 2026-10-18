@@ -10,7 +10,7 @@ export async function POST(request: Request) {
   const forbidden = protectAdminMutation(request); if (forbidden) return forbidden;
   const limited = await distributedRateLimit(request, 'admin-media', 10, 60_000, 'local'); if (limited) return limited;
     const declared = Number(request.headers.get('content-length'));
-  if (Number.isFinite(declared) && declared > MAX_MEDIA_REQUEST_BYTES) return NextResponse.json({ error: 'Request body too large' }, { status: 413 });
+  if (Number.isFinite(declared) && declared > MAX_MEDIA_REQUEST_BYTES) return apiError(new Error('Request body too large'), { fallback: 'Request body too large', request, status: 413, code: 'REQUEST_TOO_LARGE' });
   try {
     await requireAdmin();
     const contentType = request.headers.get('content-type') ?? '';
@@ -36,5 +36,5 @@ export async function POST(request: Request) {
      const image = action === 'replace' ? await replacePrimaryImage(admin, storage, productId, file) : await addProductImage(admin, storage, productId, file, String(payload.primary) === 'true', Number(payload.sortOrder ?? 0)); const objectPath = image.object_path ?? image.objectPath; let imageUrl = objectPath;
     if (objectPath) { try { const signed = await admin.storage.from('product-images').createSignedUrl(objectPath, 900); if (!signed.error && signed.data?.signedUrl) imageUrl = signed.data.signedUrl; } catch {} }
     return NextResponse.json({ ...image, imageUrl, objectPath }, { status: 201 });
-  } catch (error) { const response = apiError(error, { fallback: 'Invalid image', request }); if (error instanceof Error && error.message.includes('at most 6 images')) return NextResponse.json({ error: error.message }, { status: 409 }); return response; }
+  } catch (error) { return apiError(error, { fallback: 'Invalid image', request, status: error instanceof Error && error.message.includes('at most 6 images') ? 409 : undefined, code: error instanceof Error && error.message.includes('at most 6 images') ? 'MEDIA_LIMIT_REACHED' : undefined }); }
 }
