@@ -19,7 +19,7 @@ Without a valid cron secret, the route uses the normal admin session and CSRF pr
 
 ## Vercel cron behavior
 
-Vercel invokes `/api/admin/push/process` according to `vercel.json` (currently every five minutes). Configure `PUSH_CRON_SECRET` or `CRON_SECRET` in the deployment environment. The worker processes pending and retryable outbox jobs, retries up to five times, removes subscriptions returning HTTP 404 or 410, and marks a job sent only after at least one device accepts delivery.
+Vercel Hobby does not run the five-minute processor cron. Configure an external scheduler to invoke `/api/admin/push/process` every five minutes with `Authorization: Bearer <PUSH_CRON_SECRET>`. The worker processes pending and retryable outbox jobs, retries up to five times, removes subscriptions returning HTTP 404 or 410, and marks a job sent only after at least one device accepts delivery.
 
 Checkout only queues the notification; push delivery is asynchronous and cannot roll back an order.
 
