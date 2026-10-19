@@ -12,7 +12,7 @@ export async function listAdminOrders(client: any, filter: AdminOrderFilter = {}
   }
   let query = client
     .from('orders')
-    .select('id, order_reference, customer_name, customer_surname, customer_phone, payment_method, delivery_method, status, created_at, order_items(id, product_id, product_name, variant_label, unit_price_ars, quantity)')
+    .select('id, order_reference, customer_name, customer_surname, customer_phone, payment_method, delivery_method, status, cancel_reason, created_at, order_items(id, product_id, product_name, variant_label, unit_price_ars, quantity)')
     .order('created_at', { ascending: false });
 
   if (filter.reference?.trim()) query = query.ilike('order_reference', `%${filter.reference.trim()}%`);
