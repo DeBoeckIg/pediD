@@ -62,6 +62,16 @@ describe('admin order management', () => {
     expect(rpc).toHaveBeenCalledWith('delete_order_atomic', { order_id: '11111111-1111-4111-8111-111111111111' });
   });
 
+  it('reopens expired orders through the protected atomic RPC action', async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: { id: 'order-1', status: 'pending' }, error: null });
+    state.adminClient = { rpc };
+    const { POST } = await import('../app/api/admin/orders/route');
+    const headers = { origin: 'http://localhost', cookie: 'pedid_csrf_token=test-token', 'x-csrf-token': 'test-token', 'content-type': 'application/json' };
+    const response = await POST(new Request('http://localhost/api/admin/orders', { method: 'POST', headers, body: JSON.stringify({ action: 'reopen', orderId: '11111111-1111-4111-8111-111111111111' }) }));
+    expect(response.status).toBe(200);
+    expect(rpc).toHaveBeenCalledWith('reopen_expired_order', { order_id: '11111111-1111-4111-8111-111111111111' });
+  });
+
   it('protects order deletion and returns no content for a valid admin request', async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
     state.adminClient = { rpc };

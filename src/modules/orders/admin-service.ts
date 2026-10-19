@@ -42,3 +42,9 @@ export async function deleteOrder(client: any, orderId: string) {
   const { error } = await client.rpc('delete_order_atomic', { order_id: orderId });
   if (error) throw error;
 }
+
+export async function reopenExpiredOrder(client: any, orderId: string) {
+  const { data, error } = await client.rpc('reopen_expired_order', { order_id: orderId });
+  if (error) throw error;
+  return { id: data.id, status: data.status };
+}
