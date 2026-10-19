@@ -6,6 +6,10 @@ export type AdminOrderFilter = {
 import { validateStatusTransition, type OrderStatus } from './validation';
 
 export async function listAdminOrders(client: any, filter: AdminOrderFilter = {}) {
+  if (typeof client.rpc === 'function') {
+    const cleanup = await client.rpc('expire_pending_order_reservations');
+    if (cleanup?.error) throw cleanup.error;
+  }
   let query = client
     .from('orders')
     .select('id, order_reference, customer_name, customer_surname, customer_phone, payment_method, delivery_method, status, created_at, order_items(id, product_id, product_name, variant_label, unit_price_ars, quantity)')
